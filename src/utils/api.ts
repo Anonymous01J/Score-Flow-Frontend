@@ -30,12 +30,15 @@ export const api = {
   },
 };
 
-// Formatea fecha a YYYY-MM-DD
+// Formatea fecha a YYYY-MM-DD usando hora local (evita bug de timezone UTC)
 export function formatDate(date: Date): string {
-  return date.toISOString().split("T")[0];
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
-// Fecha de hoy
+// Fecha de hoy en hora local
 export function today(): string {
   return formatDate(new Date());
 }
