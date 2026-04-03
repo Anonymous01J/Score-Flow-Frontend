@@ -28,6 +28,45 @@ export const api = {
     if (odds?.away)  url += `&odds_away=${odds.away}`;
     return fetchAPI(url);
   },
+
+  /**
+   * Busca los próximos N partidos de una liga iterando fechas desde hoy.
+   * Solo incluye partidos con status programado (NS, TBD, SCHEDULED...).
+   * Busca hasta maxDays días hacia adelante.
+   */
+  getUpcomingFixtures: async (
+    league: LeagueKey,
+    count: number = 5,
+    maxDays: number = 30
+  ): Promise<Fixture[]> => {
+    const UPCOMING_STATUSES = ["NS", "TBD", "SCHED", "SCHEDULED", "NOT_STARTED"];
+    const upcoming: Fixture[] = [];
+    const base = new Date();
+
+    for (let i = 0; i < maxDays && upcoming.length < count; i++) {
+      const date = new Date(base);
+      date.setDate(base.getDate() + i);
+      const dateStr = formatDate(date);
+
+      try {
+        const fixtures = await fetchAPI<Fixture[]>(
+          `/fixtures?league=${league}&date=${dateStr}`
+        );
+        const scheduled = fixtures.filter((f) =>
+          UPCOMING_STATUSES.includes((f.status ?? "").toUpperCase())
+        );
+        upcoming.push(...scheduled);
+      } catch {
+        // Si falla un día, continuar
+      }
+
+      if (i < maxDays - 1 && upcoming.length < count) {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+    }
+
+    return upcoming.slice(0, count);
+  },
 };
 
 // Formatea fecha a YYYY-MM-DD usando hora local (evita bug de timezone UTC)
