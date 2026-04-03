@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet, TouchableOpacity, Platform } from "react-native";
+import { View, StyleSheet, TouchableOpacity, Platform, Pressable } from "react-native";
 import { Text, useTheme, Surface } from "react-native-paper";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
 
@@ -14,9 +14,9 @@ function formatDate(date: Date): string {
 
 function getWeekDays(referenceDate: Date): Date[] {
   const d = new Date(referenceDate);
-  const day = d.getDay(); // 0=dom
+  const day = d.getDay();
   const monday = new Date(d);
-  monday.setDate(d.getDate() - ((day + 6) % 7)); // ajuste a lunes
+  monday.setDate(d.getDate() - ((day + 6) % 7));
   return Array.from({ length: 7 }, (_, i) => {
     const dd = new Date(monday);
     dd.setDate(monday.getDate() + i);
@@ -30,14 +30,94 @@ const MONTH_NAMES = [
   "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre",
 ];
 
+const isWeb = Platform.OS === "web";
+
+// Botón de día con mejor compatibilidad web móvil
+function DayButton({
+  dateStr, day, index, isSelected, isToday, isPast, onPress,
+}: {
+  dateStr: string;
+  day: Date;
+  index: number;
+  isSelected: boolean;
+  isToday: boolean;
+  isPast: boolean;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+
+  const bgColor = isSelected
+    ? theme.colors.primary
+    : "transparent";
+
+  const borderStyle = !isSelected && isToday
+    ? { borderWidth: 1.5, borderColor: theme.colors.primary }
+    : {};
+
+  const dayLabelColor = isSelected ? "#fff" : theme.colors.onSurfaceVariant;
+  const dayNumColor   = isSelected
+    ? "#fff"
+    : isPast
+    ? theme.colors.onSurfaceVariant
+    : theme.colors.onSurface;
+
+  // En web usamos Pressable con style directo para mejor touch response
+  if (isWeb) {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.dayBtn,
+          { backgroundColor: pressed && !isSelected ? theme.colors.surfaceVariant : bgColor },
+          borderStyle,
+          // cursor pointer via web style
+          { cursor: "pointer" } as any,
+        ]}
+      >
+        <Text style={[styles.dayLabel, { color: dayLabelColor }]}>
+          {DAY_LABELS[index]}
+        </Text>
+        <Text style={[
+          styles.dayNumber,
+          { color: dayNumColor, fontWeight: isToday || isSelected ? "800" : "500" },
+        ]}>
+          {day.getDate()}
+        </Text>
+        {isToday && !isSelected && (
+          <View style={[styles.todayDot, { backgroundColor: theme.colors.primary }]} />
+        )}
+      </Pressable>
+    );
+  }
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[styles.dayBtn, { backgroundColor: bgColor }, borderStyle]}
+    >
+      <Text style={[styles.dayLabel, { color: dayLabelColor }]}>
+        {DAY_LABELS[index]}
+      </Text>
+      <Text style={[
+        styles.dayNumber,
+        { color: dayNumColor, fontWeight: isToday || isSelected ? "800" : "500" },
+      ]}>
+        {day.getDate()}
+      </Text>
+      {isToday && !isSelected && (
+        <View style={[styles.todayDot, { backgroundColor: theme.colors.primary }]} />
+      )}
+    </TouchableOpacity>
+  );
+}
+
 export function WeekCalendar({ selectedDate, onSelectDate }: CalendarProps) {
-  const theme   = useTheme();
+  const theme    = useTheme();
   const todayStr = formatDate(new Date());
 
-  // semana de referencia (lunes de la semana actual por defecto)
   const [weekRef, setWeekRef] = useState(() => new Date());
 
-  const days = getWeekDays(weekRef);
+  const days       = getWeekDays(weekRef);
   const monthLabel = `${MONTH_NAMES[days[0].getMonth()]} ${days[0].getFullYear()}`;
 
   const prevWeek = () => {
@@ -57,96 +137,113 @@ export function WeekCalendar({ selectedDate, onSelectDate }: CalendarProps) {
     onSelectDate(todayStr);
   };
 
+  const NavBtn = ({ onPress, children }: { onPress: () => void; children: React.ReactNode }) =>
+    isWeb ? (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.navBtn,
+          pressed && { backgroundColor: theme.colors.surfaceVariant },
+          { cursor: "pointer" } as any,
+        ]}
+      >
+        {children}
+      </Pressable>
+    ) : (
+      <TouchableOpacity onPress={onPress} style={styles.navBtn}>
+        {children}
+      </TouchableOpacity>
+    );
+
   return (
-    <Surface style={[styles.container, { backgroundColor: theme.colors.surface }]} elevation={1}>
+    <Surface
+      style={[styles.container, { backgroundColor: theme.colors.surface }]}
+      elevation={1}
+    >
       {/* Encabezado mes + navegación */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={prevWeek} style={styles.navBtn}>
+        <NavBtn onPress={prevWeek}>
           <ChevronLeft size={18} color={theme.colors.onSurface} strokeWidth={2} />
-        </TouchableOpacity>
+        </NavBtn>
 
-        <TouchableOpacity onPress={goToday}>
-          <Text style={[styles.monthLabel, { color: theme.colors.onSurface }]}>
-            {monthLabel}
-          </Text>
-        </TouchableOpacity>
+        {isWeb ? (
+          <Pressable
+            onPress={goToday}
+            style={[{ cursor: "pointer" } as any]}
+          >
+            <Text style={[styles.monthLabel, { color: theme.colors.onSurface }]}>
+              {monthLabel}
+            </Text>
+          </Pressable>
+        ) : (
+          <TouchableOpacity onPress={goToday}>
+            <Text style={[styles.monthLabel, { color: theme.colors.onSurface }]}>
+              {monthLabel}
+            </Text>
+          </TouchableOpacity>
+        )}
 
-        <TouchableOpacity onPress={nextWeek} style={styles.navBtn}>
+        <NavBtn onPress={nextWeek}>
           <ChevronRight size={18} color={theme.colors.onSurface} strokeWidth={2} />
-        </TouchableOpacity>
+        </NavBtn>
       </View>
 
-      {/* Días de la semana */}
+      {/* Días */}
       <View style={styles.daysRow}>
         {days.map((day, i) => {
-          const dateStr  = formatDate(day);
+          const dateStr    = formatDate(day);
           const isSelected = dateStr === selectedDate;
           const isToday    = dateStr === todayStr;
           const isPast     = dateStr < todayStr;
 
           return (
-            <TouchableOpacity
+            <DayButton
               key={dateStr}
+              dateStr={dateStr}
+              day={day}
+              index={i}
+              isSelected={isSelected}
+              isToday={isToday}
+              isPast={isPast}
               onPress={() => onSelectDate(dateStr)}
-              style={[
-                styles.dayBtn,
-                isSelected && { backgroundColor: theme.colors.primary },
-                !isSelected && isToday && {
-                  borderWidth: 1.5,
-                  borderColor: theme.colors.primary,
-                },
-              ]}
-            >
-              <Text style={[
-                styles.dayLabel,
-                { color: isSelected ? "#fff" : theme.colors.onSurfaceVariant },
-              ]}>
-                {DAY_LABELS[i]}
-              </Text>
-              <Text style={[
-                styles.dayNumber,
-                {
-                  color: isSelected
-                    ? "#fff"
-                    : isPast
-                    ? theme.colors.onSurfaceVariant
-                    : theme.colors.onSurface,
-                  fontWeight: isToday || isSelected ? "800" : "500",
-                },
-              ]}>
-                {day.getDate()}
-              </Text>
-              {/* Dot para "hoy" cuando no está seleccionado */}
-              {isToday && !isSelected && (
-                <View style={[styles.todayDot, { backgroundColor: theme.colors.primary }]} />
-              )}
-            </TouchableOpacity>
+            />
           );
         })}
       </View>
 
-      {/* Botón "Hoy" si la semana visible no contiene hoy */}
+      {/* Botón "Volver a hoy" si la semana visible no contiene hoy */}
       {!days.some((d) => formatDate(d) === todayStr) && (
-        <TouchableOpacity onPress={goToday} style={styles.todayBtn}>
-          <Text style={[styles.todayBtnText, { color: theme.colors.primary }]}>
-            Volver a hoy
-          </Text>
-        </TouchableOpacity>
+        isWeb ? (
+          <Pressable
+            onPress={goToday}
+            style={[styles.todayBtn, { cursor: "pointer" } as any]}
+          >
+            <Text style={[styles.todayBtnText, { color: theme.colors.primary }]}>
+              Volver a hoy
+            </Text>
+          </Pressable>
+        ) : (
+          <TouchableOpacity onPress={goToday} style={styles.todayBtn}>
+            <Text style={[styles.todayBtnText, { color: theme.colors.primary }]}>
+              Volver a hoy
+            </Text>
+          </TouchableOpacity>
+        )
       )}
     </Surface>
   );
 }
 
 const styles = StyleSheet.create({
-  container:   { borderRadius: 16, marginHorizontal: 16, marginBottom: 8, padding: 12 },
-  header:      { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
-  navBtn:      { padding: 6, borderRadius: 8 },
-  monthLabel:  { fontSize: 14, fontWeight: "700" },
-  daysRow:     { flexDirection: "row", justifyContent: "space-between" },
-  dayBtn:      { flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 10, marginHorizontal: 2 },
-  dayLabel:    { fontSize: 10, fontWeight: "600", marginBottom: 4 },
-  dayNumber:   { fontSize: 15 },
-  todayDot:    { width: 4, height: 4, borderRadius: 2, marginTop: 3 },
-  todayBtn:    { alignItems: "center", marginTop: 10 },
-  todayBtnText:{ fontSize: 12, fontWeight: "700" },
+  container:    { borderRadius: 16, marginHorizontal: 16, marginBottom: 8, padding: 12 },
+  header:       { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+  navBtn:       { padding: 6, borderRadius: 8 },
+  monthLabel:   { fontSize: 14, fontWeight: "700" },
+  daysRow:      { flexDirection: "row", justifyContent: "space-between" },
+  dayBtn:       { flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 10, marginHorizontal: 2, minHeight: 56 },
+  dayLabel:     { fontSize: 10, fontWeight: "600", marginBottom: 4 },
+  dayNumber:    { fontSize: 15 },
+  todayDot:     { width: 4, height: 4, borderRadius: 2, marginTop: 3 },
+  todayBtn:     { alignItems: "center", marginTop: 10 },
+  todayBtnText: { fontSize: 12, fontWeight: "700" },
 });

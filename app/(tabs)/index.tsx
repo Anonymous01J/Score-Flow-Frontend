@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View, FlatList, StyleSheet, RefreshControl,
   TouchableOpacity, Platform, ScrollView,
+  Animated, Pressable, Dimensions,
 } from "react-native";
 import { Text, ActivityIndicator, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { Sun, Moon } from "lucide-react-native";
+import { Sun, Moon, Menu, X } from "lucide-react-native";
 import { FixtureCard } from "../../src/components/ui/FixtureCard";
 import { WeekCalendar } from "../../src/components/ui/WeekCalendar";
 import { useTheme as useAppTheme } from "../../src/store/AppContext";
@@ -17,9 +18,193 @@ import type { Fixture, LeagueKey } from "../../src/types";
 const LEAGUE_KEYS: LeagueKey[] = ["premier_league", "la_liga", "champions_league"];
 const isWeb = Platform.OS === "web";
 
+// Hook para detectar ancho de ventana en web
+function useWindowWidth() {
+  const [width, setWidth] = useState(
+    isWeb ? (typeof window !== "undefined" ? window.innerWidth : 1024) : 375
+  );
+
+  useEffect(() => {
+    if (!isWeb || typeof window === "undefined") return;
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+
+  return width;
+}
+
+// ─── Drawer Overlay (mobile web) ─────────────────────────────────────────────
+
+interface DrawerProps {
+  visible: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}
+
+function Drawer({ visible, onClose, children }: DrawerProps) {
+  const slideAnim = useRef(new Animated.Value(-300)).current;
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setMounted(true);
+      Animated.parallel([
+        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 80, friction: 12 }),
+        Animated.timing(fadeAnim,  { toValue: 1, duration: 200, useNativeDriver: true }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.spring(slideAnim, { toValue: -300, useNativeDriver: true, tension: 80, friction: 12 }),
+        Animated.timing(fadeAnim,  { toValue: 0, duration: 180, useNativeDriver: true }),
+      ]).start(() => setMounted(false));
+    }
+  }, [visible]);
+
+  if (!mounted) return null;
+
+  return (
+    <View style={drawerStyles.container} pointerEvents="box-none">
+      {/* Backdrop */}
+      <Animated.View style={[drawerStyles.backdrop, { opacity: fadeAnim }]}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+      </Animated.View>
+
+      {/* Panel */}
+      <Animated.View style={[drawerStyles.panel, { transform: [{ translateX: slideAnim }] }]}>
+        {children}
+      </Animated.View>
+    </View>
+  );
+}
+
+const drawerStyles = StyleSheet.create({
+  container: {
+    position: "absolute" as any,
+    top: 0, left: 0, right: 0, bottom: 0,
+    zIndex: 1000,
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  panel: {
+    position: "absolute" as any,
+    top: 0, left: 0, bottom: 0,
+    width: 300,
+    zIndex: 1001,
+  },
+});
+
+// ─── Sidebar Content ──────────────────────────────────────────────────────────
+
+interface SidebarContentProps {
+  selectedDate: string;
+  onSelectDate: (d: string) => void;
+  selectedLeague: LeagueKey;
+  onSelectLeague: (k: LeagueKey) => void;
+  isDark: boolean;
+  toggleTheme: () => void;
+  onClose?: () => void;
+}
+
+function SidebarContent({
+  selectedDate, onSelectDate,
+  selectedLeague, onSelectLeague,
+  isDark, toggleTheme, onClose,
+}: SidebarContentProps) {
+  const theme = useTheme();
+
+  return (
+    <ScrollView
+      style={[sidebarStyles.container, { backgroundColor: theme.colors.surface }]}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Header */}
+      <View style={sidebarStyles.header}>
+        <Text style={[sidebarStyles.logo, { color: theme.colors.onSurface }]}>⚽ ScoreFlow</Text>
+        <View style={sidebarStyles.headerActions}>
+          <TouchableOpacity
+            onPress={toggleTheme}
+            style={[sidebarStyles.iconBtn, { backgroundColor: theme.colors.surfaceVariant }]}
+          >
+            {isDark
+              ? <Sun  size={16} color={theme.colors.onSurface} strokeWidth={1.8} />
+              : <Moon size={16} color={theme.colors.onSurface} strokeWidth={1.8} />
+            }
+          </TouchableOpacity>
+          {onClose && (
+            <TouchableOpacity
+              onPress={onClose}
+              style={[sidebarStyles.iconBtn, { backgroundColor: theme.colors.surfaceVariant }]}
+            >
+              <X size={16} color={theme.colors.onSurface} strokeWidth={1.8} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* Calendario */}
+      <WeekCalendar selectedDate={selectedDate} onSelectDate={(d) => { onSelectDate(d); onClose?.(); }} />
+
+      {/* Ligas */}
+      <View style={sidebarStyles.leagueSection}>
+        <Text style={[sidebarStyles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
+          LIGAS
+        </Text>
+        {LEAGUE_KEYS.map((key) => {
+          const isActive = selectedLeague === key;
+          return (
+            <TouchableOpacity
+              key={key}
+              onPress={() => { onSelectLeague(key); onClose?.(); }}
+              style={[
+                sidebarStyles.leagueItem,
+                isActive && { backgroundColor: theme.colors.primary + "18", borderRadius: 10 },
+              ]}
+            >
+              <Text style={sidebarStyles.leagueFlag}>{LEAGUES[key].flag}</Text>
+              <Text style={[
+                sidebarStyles.leagueName,
+                { color: isActive ? theme.colors.primary : theme.colors.onSurface },
+              ]}>
+                {LEAGUES[key].name}
+              </Text>
+              {isActive && (
+                <View style={[sidebarStyles.activeDot, { backgroundColor: theme.colors.primary }]} />
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <View style={{ height: 32 }} />
+    </ScrollView>
+  );
+}
+
+const sidebarStyles = StyleSheet.create({
+  container:    { flex: 1 },
+  header:       { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingTop: 24, paddingBottom: 16 },
+  logo:         { fontSize: 18, fontWeight: "800" },
+  headerActions:{ flexDirection: "row", gap: 8 },
+  iconBtn:      { padding: 8, borderRadius: 10 },
+  leagueSection:{ paddingHorizontal: 12, marginTop: 8 },
+  sectionTitle: { fontSize: 11, fontWeight: "700", letterSpacing: 1, paddingHorizontal: 8, marginBottom: 6 },
+  leagueItem:   { flexDirection: "row", alignItems: "center", paddingHorizontal: 8, paddingVertical: 10, gap: 10 },
+  leagueFlag:   { fontSize: 20 },
+  leagueName:   { flex: 1, fontSize: 14, fontWeight: "600" },
+  activeDot:    { width: 6, height: 6, borderRadius: 3 },
+});
+
+// ─── Pantalla principal ───────────────────────────────────────────────────────
+
 export default function TodayScreen() {
   const theme = useTheme();
   const { isDark, toggleTheme } = useAppTheme();
+  const windowWidth = useWindowWidth();
+  const isDesktop   = isWeb && windowWidth >= 768;
 
   const [selectedLeague, setSelectedLeague] = useState<LeagueKey>("premier_league");
   const [selectedDate, setSelectedDate]     = useState(today());
@@ -27,6 +212,7 @@ export default function TodayScreen() {
   const [loading, setLoading]               = useState(false);
   const [refreshing, setRefreshing]         = useState(false);
   const [error, setError]                   = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen]         = useState(false);
 
   const loadFixtures = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
@@ -57,111 +243,179 @@ export default function TodayScreen() {
     });
   };
 
-  // ─── Web layout ─────────────────────────────────────────────────────────────
+  // ─── Contenido central (fixtures) ─────────────────────────────────────────
+
+  const fixturesContent = (
+    <>
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>
+            Cargando partidos...
+          </Text>
+        </View>
+      ) : error ? (
+        <View style={styles.centered}>
+          <Text style={{ color: theme.colors.error }}>{error}</Text>
+          <TouchableOpacity onPress={() => loadFixtures()} style={styles.retryBtn}>
+            <Text style={{ color: theme.colors.primary, fontWeight: "700" }}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
+      ) : fixtures.length === 0 ? (
+        <View style={styles.centered}>
+          <Text style={{ fontSize: 48 }}>📅</Text>
+          <Text style={[styles.emptyTitle, { color: theme.colors.onSurface }]}>
+            Sin partidos este día
+          </Text>
+          <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 4, textAlign: "center" }}>
+            Selecciona otra fecha en el calendario
+          </Text>
+        </View>
+      ) : isDesktop ? (
+        // Grid 2 col en desktop
+        <View style={styles.webGrid}>
+          {fixtures.map((item) => (
+            <View key={item.fixture_id} style={styles.webCard}>
+              <FixtureCard fixture={item} onPress={() => handleFixturePress(item)} />
+            </View>
+          ))}
+        </View>
+      ) : (
+        // Lista en móvil web
+        fixtures.map((item) => (
+          <FixtureCard
+            key={item.fixture_id}
+            fixture={item}
+            onPress={() => handleFixturePress(item)}
+          />
+        ))
+      )}
+    </>
+  );
+
+  // ─── Layout web (desktop + móvil web) ─────────────────────────────────────
+
   if (isWeb) {
     return (
       <View style={[styles.webRoot, { backgroundColor: theme.colors.background }]}>
-        <View style={styles.webInner}>
+        <View style={[styles.webInner, !isDesktop && { flexDirection: "column" }]}>
 
-          {/* Sidebar */}
-          <View style={[styles.sidebar, { backgroundColor: theme.colors.surface, borderRightColor: theme.colors.outline }]}>
-            <View style={styles.sidebarHeader}>
-              <Text style={[styles.logo, { color: theme.colors.onSurface }]}>⚽ ScoreFlow</Text>
-              <TouchableOpacity onPress={toggleTheme} style={[styles.themeBtn, { backgroundColor: theme.colors.surfaceVariant }]}>
-                {isDark ? <Sun size={16} color={theme.colors.onSurface} strokeWidth={1.8} /> : <Moon size={16} color={theme.colors.onSurface} strokeWidth={1.8} />}
+          {/* ── DESKTOP: sidebar fijo ── */}
+          {isDesktop && (
+            <View style={[
+              styles.sidebar,
+              { backgroundColor: theme.colors.surface, borderRightColor: theme.colors.outline },
+            ]}>
+              <SidebarContent
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+                selectedLeague={selectedLeague}
+                onSelectLeague={setSelectedLeague}
+                isDark={isDark}
+                toggleTheme={toggleTheme}
+              />
+            </View>
+          )}
+
+          {/* ── MÓVIL WEB: header con hamburguesa ── */}
+          {!isDesktop && (
+            <View style={[
+              styles.mobileWebHeader,
+              { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outline },
+            ]}>
+              <TouchableOpacity
+                onPress={() => setDrawerOpen(true)}
+                style={[styles.hamburgerBtn, { backgroundColor: theme.colors.surfaceVariant }]}
+              >
+                <Menu size={20} color={theme.colors.onSurface} strokeWidth={1.8} />
               </TouchableOpacity>
-            </View>
 
-            <WeekCalendar selectedDate={selectedDate} onSelectDate={setSelectedDate} />
-
-            <View style={styles.leagueSidebar}>
-              <Text style={[styles.sidebarSectionTitle, { color: theme.colors.onSurfaceVariant }]}>LIGAS</Text>
-              {LEAGUE_KEYS.map((key) => (
-                <TouchableOpacity
-                  key={key}
-                  onPress={() => setSelectedLeague(key)}
-                  style={[
-                    styles.leagueSidebarItem,
-                    selectedLeague === key && { backgroundColor: theme.colors.primary + "18", borderRadius: 10 },
-                  ]}
-                >
-                  <Text style={styles.leagueFlag}>{LEAGUES[key].flag}</Text>
-                  <Text style={[
-                    styles.leagueSidebarText,
-                    { color: selectedLeague === key ? theme.colors.primary : theme.colors.onSurface },
-                  ]}>
-                    {LEAGUES[key].name}
-                  </Text>
-                  {selectedLeague === key && (
-                    <View style={[styles.activeIndicator, { backgroundColor: theme.colors.primary }]} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Main */}
-          <View style={styles.webMain}>
-            <View style={styles.webMainHeader}>
-              <View>
-                <Text style={[styles.webDateTitle, { color: theme.colors.onBackground }]}>
+              <View style={styles.mobileWebTitleBlock}>
+                <Text style={[styles.mobileWebTitle, { color: theme.colors.onSurface }]}>
                   {LEAGUES[selectedLeague].flag} {LEAGUES[selectedLeague].name}
                 </Text>
-                <Text style={[styles.webDateSub, { color: theme.colors.onSurfaceVariant }]}>
+                <Text style={[styles.mobileWebSub, { color: theme.colors.onSurfaceVariant }]}>
                   {selectedDate === today() ? "Hoy · " : ""}{selectedDate}
                 </Text>
               </View>
-              <Text style={[styles.fixtureCount, { color: theme.colors.onSurfaceVariant }]}>
-                {loading ? "..." : `${fixtures.length} partido${fixtures.length !== 1 ? "s" : ""}`}
-              </Text>
+
+              <TouchableOpacity
+                onPress={toggleTheme}
+                style={[styles.hamburgerBtn, { backgroundColor: theme.colors.surfaceVariant }]}
+              >
+                {isDark
+                  ? <Sun  size={18} color={theme.colors.onSurface} strokeWidth={1.8} />
+                  : <Moon size={18} color={theme.colors.onSurface} strokeWidth={1.8} />
+                }
+              </TouchableOpacity>
             </View>
+          )}
+
+          {/* ── Área principal ── */}
+          <View style={[styles.webMain, !isDesktop && { paddingTop: 8, paddingHorizontal: 0 }]}>
+            {isDesktop && (
+              <View style={styles.webMainHeader}>
+                <View>
+                  <Text style={[styles.webDateTitle, { color: theme.colors.onBackground }]}>
+                    {LEAGUES[selectedLeague].flag} {LEAGUES[selectedLeague].name}
+                  </Text>
+                  <Text style={[styles.webDateSub, { color: theme.colors.onSurfaceVariant }]}>
+                    {selectedDate === today() ? "Hoy · " : ""}{selectedDate}
+                  </Text>
+                </View>
+                <Text style={[styles.fixtureCount, { color: theme.colors.onSurfaceVariant }]}>
+                  {loading ? "..." : `${fixtures.length} partido${fixtures.length !== 1 ? "s" : ""}`}
+                </Text>
+              </View>
+            )}
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              {loading ? (
-                <View style={styles.centered}>
-                  <ActivityIndicator size="large" color={theme.colors.primary} />
-                  <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>Cargando partidos...</Text>
-                </View>
-              ) : error ? (
-                <View style={styles.centered}>
-                  <Text style={{ color: theme.colors.error }}>{error}</Text>
-                  <TouchableOpacity onPress={() => loadFixtures()} style={styles.retryBtn}>
-                    <Text style={{ color: theme.colors.primary, fontWeight: "700" }}>Reintentar</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : fixtures.length === 0 ? (
-                <View style={styles.centered}>
-                  <Text style={{ fontSize: 48 }}>📅</Text>
-                  <Text style={[styles.emptyTitle, { color: theme.colors.onSurface }]}>Sin partidos este día</Text>
-                  <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>Selecciona otra fecha en el calendario</Text>
-                </View>
-              ) : (
-                <View style={styles.webGrid}>
-                  {fixtures.map((item) => (
-                    <View key={item.fixture_id} style={styles.webCard}>
-                      <FixtureCard fixture={item} onPress={() => handleFixturePress(item)} />
-                    </View>
-                  ))}
-                </View>
-              )}
+              {fixturesContent}
+              <View style={{ height: 32 }} />
             </ScrollView>
           </View>
 
         </View>
+
+        {/* ── Drawer móvil web ── */}
+        {!isDesktop && (
+          <Drawer visible={drawerOpen} onClose={() => setDrawerOpen(false)}>
+            <SidebarContent
+              selectedDate={selectedDate}
+              onSelectDate={(d) => { setSelectedDate(d); setDrawerOpen(false); }}
+              selectedLeague={selectedLeague}
+              onSelectLeague={(k) => { setSelectedLeague(k); setDrawerOpen(false); }}
+              isDark={isDark}
+              toggleTheme={toggleTheme}
+              onClose={() => setDrawerOpen(false)}
+            />
+          </Drawer>
+        )}
       </View>
     );
   }
 
-  // ─── Mobile layout ──────────────────────────────────────────────────────────
+  // ─── Layout nativo (iOS / Android) ────────────────────────────────────────
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.header}>
         <View>
-          <Text variant="headlineSmall" style={[styles.title, { color: theme.colors.onBackground }]}>⚽ ScoreFlow</Text>
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>Predicciones basadas en datos</Text>
+          <Text variant="headlineSmall" style={[styles.title, { color: theme.colors.onBackground }]}>
+            ⚽ ScoreFlow
+          </Text>
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+            Predicciones basadas en datos
+          </Text>
         </View>
-        <TouchableOpacity onPress={toggleTheme} style={[styles.themeBtn, { backgroundColor: theme.colors.surfaceVariant }]}>
-          {isDark ? <Sun size={18} color={theme.colors.onSurface} strokeWidth={1.8} /> : <Moon size={18} color={theme.colors.onSurface} strokeWidth={1.8} />}
+        <TouchableOpacity
+          onPress={toggleTheme}
+          style={[styles.themeBtn, { backgroundColor: theme.colors.surfaceVariant }]}
+        >
+          {isDark
+            ? <Sun  size={18} color={theme.colors.onSurface} strokeWidth={1.8} />
+            : <Moon size={18} color={theme.colors.onSurface} strokeWidth={1.8} />
+          }
         </TouchableOpacity>
       </View>
 
@@ -172,9 +426,15 @@ export default function TodayScreen() {
           <TouchableOpacity
             key={key}
             onPress={() => setSelectedLeague(key)}
-            style={[styles.leagueTab, selectedLeague === key && { borderBottomColor: theme.colors.primary, borderBottomWidth: 2 }]}
+            style={[
+              styles.leagueTab,
+              selectedLeague === key && { borderBottomColor: theme.colors.primary, borderBottomWidth: 2 },
+            ]}
           >
-            <Text style={[styles.leagueTabText, { color: selectedLeague === key ? theme.colors.primary : theme.colors.onSurfaceVariant }]}>
+            <Text style={[
+              styles.leagueTabText,
+              { color: selectedLeague === key ? theme.colors.primary : theme.colors.onSurfaceVariant },
+            ]}>
               {LEAGUES[key].flag} {LEAGUES[key].name.split(" ")[0]}
             </Text>
           </TouchableOpacity>
@@ -196,14 +456,24 @@ export default function TodayScreen() {
       ) : fixtures.length === 0 ? (
         <View style={styles.centered}>
           <Text style={{ fontSize: 40 }}>📅</Text>
-          <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>No hay partidos para esta fecha</Text>
+          <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>
+            No hay partidos para esta fecha
+          </Text>
         </View>
       ) : (
         <FlatList
           data={fixtures}
           keyExtractor={(item) => String(item.fixture_id)}
-          renderItem={({ item }) => <FixtureCard fixture={item} onPress={() => handleFixturePress(item)} />}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadFixtures(true)} tintColor={theme.colors.primary} />}
+          renderItem={({ item }) => (
+            <FixtureCard fixture={item} onPress={() => handleFixturePress(item)} />
+          )}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => loadFixtures(true)}
+              tintColor={theme.colors.primary}
+            />
+          }
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
         />
@@ -213,34 +483,33 @@ export default function TodayScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:          { flex: 1 },
-  header:             { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
-  title:              { fontWeight: "800" },
-  themeBtn:           { padding: 10, borderRadius: 12 },
-  leagueRow:          { flexDirection: "row", paddingHorizontal: 16, marginBottom: 8 },
-  leagueTab:          { flex: 1, alignItems: "center", paddingVertical: 10 },
-  leagueTabText:      { fontSize: 12, fontWeight: "700" },
-  list:               { paddingVertical: 8, paddingBottom: 24 },
-  centered:           { flex: 1, justifyContent: "center", alignItems: "center", gap: 8, paddingTop: 60 },
-  retryBtn:           { marginTop: 8, padding: 12 },
-  emptyTitle:         { fontSize: 18, fontWeight: "700" },
-  // Web
-  webRoot:            { flex: 1 },
-  webInner:           { flex: 1, flexDirection: "row" },
-  sidebar:            { width: 280, borderRightWidth: 1, paddingTop: 24 },
-  sidebarHeader:      { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, marginBottom: 20 },
-  logo:               { fontSize: 18, fontWeight: "800" },
-  leagueSidebar:      { paddingHorizontal: 12, marginTop: 8 },
-  sidebarSectionTitle:{ fontSize: 11, fontWeight: "700", letterSpacing: 1, paddingHorizontal: 8, marginBottom: 6 },
-  leagueSidebarItem:  { flexDirection: "row", alignItems: "center", paddingHorizontal: 8, paddingVertical: 10, gap: 10 },
-  leagueFlag:         { fontSize: 20 },
-  leagueSidebarText:  { flex: 1, fontSize: 14, fontWeight: "600" },
-  activeIndicator:    { width: 6, height: 6, borderRadius: 3 },
-  webMain:            { flex: 1, paddingTop: 24, paddingHorizontal: 24 },
-  webMainHeader:      { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 20 },
-  webDateTitle:       { fontSize: 22, fontWeight: "800" },
-  webDateSub:         { fontSize: 13, marginTop: 2 },
-  fixtureCount:       { fontSize: 13 },
-  webGrid:            { flexDirection: "row", flexWrap: "wrap" },
-  webCard:            { width: "50%" as any, minWidth: 300 },
+  // Native
+  container:         { flex: 1 },
+  header:            { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
+  title:             { fontWeight: "800" },
+  themeBtn:          { padding: 10, borderRadius: 12 },
+  leagueRow:         { flexDirection: "row", paddingHorizontal: 16, marginBottom: 8 },
+  leagueTab:         { flex: 1, alignItems: "center", paddingVertical: 10 },
+  leagueTabText:     { fontSize: 12, fontWeight: "700" },
+  list:              { paddingVertical: 8, paddingBottom: 24 },
+  centered:          { flex: 1, justifyContent: "center", alignItems: "center", gap: 8, paddingTop: 60 },
+  retryBtn:          { marginTop: 8, padding: 12 },
+  emptyTitle:        { fontSize: 18, fontWeight: "700" },
+  // Web shared
+  webRoot:           { flex: 1 },
+  webInner:          { flex: 1, flexDirection: "row" },
+  sidebar:           { width: 280, borderRightWidth: 1 },
+  webMain:           { flex: 1, paddingTop: 24, paddingHorizontal: 24 },
+  webMainHeader:     { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 20 },
+  webDateTitle:      { fontSize: 22, fontWeight: "800" },
+  webDateSub:        { fontSize: 13, marginTop: 2 },
+  fixtureCount:      { fontSize: 13 },
+  webGrid:           { flexDirection: "row", flexWrap: "wrap" },
+  webCard:           { width: "50%" as any, minWidth: 300 },
+  // Mobile web header
+  mobileWebHeader:   { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
+  hamburgerBtn:      { padding: 10, borderRadius: 12 },
+  mobileWebTitleBlock:{ flex: 1, alignItems: "center" },
+  mobileWebTitle:    { fontSize: 15, fontWeight: "800" },
+  mobileWebSub:      { fontSize: 11, marginTop: 1 },
 });
