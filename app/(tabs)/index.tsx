@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View, FlatList, StyleSheet, RefreshControl,
   TouchableOpacity, Platform, ScrollView,
-  Animated, Pressable, Dimensions,
+  Animated, Pressable,
 } from "react-native";
 import { Text, ActivityIndicator, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -18,7 +18,6 @@ import type { Fixture, LeagueKey } from "../../src/types";
 const LEAGUE_KEYS: LeagueKey[] = ["premier_league", "la_liga", "champions_league"];
 const isWeb = Platform.OS === "web";
 
-// Hook para detectar ancho de ventana en web
 function useWindowWidth() {
   const [width, setWidth] = useState(
     isWeb ? (typeof window !== "undefined" ? window.innerWidth : 1024) : 375
@@ -34,7 +33,7 @@ function useWindowWidth() {
   return width;
 }
 
-// ─── Drawer Overlay (mobile web) ─────────────────────────────────────────────
+// ─── Drawer Overlay ───────────────────────────────────────────────────────────
 
 interface DrawerProps {
   visible: boolean;
@@ -66,12 +65,9 @@ function Drawer({ visible, onClose, children }: DrawerProps) {
 
   return (
     <View style={drawerStyles.container} pointerEvents="box-none">
-      {/* Backdrop */}
       <Animated.View style={[drawerStyles.backdrop, { opacity: fadeAnim }]}>
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
       </Animated.View>
-
-      {/* Panel */}
       <Animated.View style={[drawerStyles.panel, { transform: [{ translateX: slideAnim }] }]}>
         {children}
       </Animated.View>
@@ -80,21 +76,9 @@ function Drawer({ visible, onClose, children }: DrawerProps) {
 }
 
 const drawerStyles = StyleSheet.create({
-  container: {
-    position: "absolute" as any,
-    top: 0, left: 0, right: 0, bottom: 0,
-    zIndex: 1000,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.55)",
-  },
-  panel: {
-    position: "absolute" as any,
-    top: 0, left: 0, bottom: 0,
-    width: 300,
-    zIndex: 1001,
-  },
+  container: { position: "absolute" as any, top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000 },
+  backdrop:  { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.55)" },
+  panel:     { position: "absolute" as any, top: 0, left: 0, bottom: 0, width: 300, zIndex: 1001 },
 });
 
 // ─── Sidebar Content ──────────────────────────────────────────────────────────
@@ -121,7 +105,6 @@ function SidebarContent({
       style={[sidebarStyles.container, { backgroundColor: theme.colors.surface }]}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
       <View style={sidebarStyles.header}>
         <Text style={[sidebarStyles.logo, { color: theme.colors.onSurface }]}>⚽ ScoreFlow</Text>
         <View style={sidebarStyles.headerActions}>
@@ -145,10 +128,11 @@ function SidebarContent({
         </View>
       </View>
 
-      {/* Calendario */}
-      <WeekCalendar selectedDate={selectedDate} onSelectDate={(d) => { onSelectDate(d); onClose?.(); }} />
+      <WeekCalendar
+        selectedDate={selectedDate}
+        onSelectDate={(d) => { onSelectDate(d); onClose?.(); }}
+      />
 
-      {/* Ligas */}
       <View style={sidebarStyles.leagueSection}>
         <Text style={[sidebarStyles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
           LIGAS
@@ -185,17 +169,17 @@ function SidebarContent({
 }
 
 const sidebarStyles = StyleSheet.create({
-  container:    { flex: 1 },
-  header:       { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingTop: 24, paddingBottom: 16 },
-  logo:         { fontSize: 18, fontWeight: "800" },
-  headerActions:{ flexDirection: "row", gap: 8 },
-  iconBtn:      { padding: 8, borderRadius: 10 },
-  leagueSection:{ paddingHorizontal: 12, marginTop: 8 },
-  sectionTitle: { fontSize: 11, fontWeight: "700", letterSpacing: 1, paddingHorizontal: 8, marginBottom: 6 },
-  leagueItem:   { flexDirection: "row", alignItems: "center", paddingHorizontal: 8, paddingVertical: 10, gap: 10 },
-  leagueFlag:   { fontSize: 20 },
-  leagueName:   { flex: 1, fontSize: 14, fontWeight: "600" },
-  activeDot:    { width: 6, height: 6, borderRadius: 3 },
+  container:     { flex: 1 },
+  header:        { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingTop: 24, paddingBottom: 16 },
+  logo:          { fontSize: 18, fontWeight: "800" },
+  headerActions: { flexDirection: "row", gap: 8 },
+  iconBtn:       { padding: 8, borderRadius: 10 },
+  leagueSection: { paddingHorizontal: 12, marginTop: 8 },
+  sectionTitle:  { fontSize: 11, fontWeight: "700", letterSpacing: 1, paddingHorizontal: 8, marginBottom: 6 },
+  leagueItem:    { flexDirection: "row", alignItems: "center", paddingHorizontal: 8, paddingVertical: 10, gap: 10 },
+  leagueFlag:    { fontSize: 20 },
+  leagueName:    { flex: 1, fontSize: 14, fontWeight: "600" },
+  activeDot:     { width: 6, height: 6, borderRadius: 3 },
 });
 
 // ─── Pantalla principal ───────────────────────────────────────────────────────
@@ -209,27 +193,52 @@ export default function TodayScreen() {
   const [selectedLeague, setSelectedLeague] = useState<LeagueKey>("premier_league");
   const [selectedDate, setSelectedDate]     = useState(today());
   const [fixtures, setFixtures]             = useState<Fixture[]>([]);
-  const [loading, setLoading]               = useState(false);
+  const [loading, setLoading]               = useState(true);  // ← true inicial para mostrar spinner desde el arranque
   const [refreshing, setRefreshing]         = useState(false);
   const [error, setError]                   = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen]         = useState(false);
 
+  // ─── FIX: usar ref para cancelar fetches obsoletos ────────────────────────
+  const fetchIdRef = useRef(0);
+
   const loadFixtures = useCallback(async (showRefresh = false) => {
-    if (showRefresh) setRefreshing(true);
-    else setLoading(true);
+    // Incrementar ID de fetch — si llega una respuesta de un fetch anterior, se ignora
+    const fetchId = ++fetchIdRef.current;
+
+    if (showRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+      setFixtures([]);   // ← limpiar fixtures al iniciar nueva carga
+    }
     setError(null);
+
     try {
       const data = await api.getFixtures(selectedLeague, selectedDate);
+
+      // Solo actualizar si este fetch sigue siendo el más reciente
+      if (fetchId !== fetchIdRef.current) return;
+
       setFixtures(data);
-    } catch {
-      setError("No se pudieron cargar los partidos.");
+    } catch (e: any) {
+      if (fetchId !== fetchIdRef.current) return;
+
+      // Distinguir rate limit (429) de error genérico
+      const msg = e?.message?.includes("429")
+        ? "Límite de requests alcanzado. Espera un momento e intenta de nuevo."
+        : "No se pudieron cargar los partidos.";
+      setError(msg);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (fetchId === fetchIdRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [selectedLeague, selectedDate]);
 
-  useEffect(() => { loadFixtures(); }, [loadFixtures]);
+  useEffect(() => {
+    loadFixtures();
+  }, [loadFixtures]);
 
   const handleFixturePress = (fixture: Fixture) => {
     router.push({
@@ -243,7 +252,7 @@ export default function TodayScreen() {
     });
   };
 
-  // ─── Contenido central (fixtures) ─────────────────────────────────────────
+  // ─── Contenido central ────────────────────────────────────────────────────
 
   const fixturesContent = (
     <>
@@ -256,7 +265,10 @@ export default function TodayScreen() {
         </View>
       ) : error ? (
         <View style={styles.centered}>
-          <Text style={{ color: theme.colors.error }}>{error}</Text>
+          <Text style={{ fontSize: 32 }}>⚠️</Text>
+          <Text style={{ color: theme.colors.error, textAlign: "center", marginTop: 8, lineHeight: 22 }}>
+            {error}
+          </Text>
           <TouchableOpacity onPress={() => loadFixtures()} style={styles.retryBtn}>
             <Text style={{ color: theme.colors.primary, fontWeight: "700" }}>Reintentar</Text>
           </TouchableOpacity>
@@ -272,7 +284,6 @@ export default function TodayScreen() {
           </Text>
         </View>
       ) : isDesktop ? (
-        // Grid 2 col en desktop
         <View style={styles.webGrid}>
           {fixtures.map((item) => (
             <View key={item.fixture_id} style={styles.webCard}>
@@ -281,7 +292,6 @@ export default function TodayScreen() {
           ))}
         </View>
       ) : (
-        // Lista en móvil web
         fixtures.map((item) => (
           <FixtureCard
             key={item.fixture_id}
@@ -293,19 +303,15 @@ export default function TodayScreen() {
     </>
   );
 
-  // ─── Layout web (desktop + móvil web) ─────────────────────────────────────
+  // ─── Layout web ───────────────────────────────────────────────────────────
 
   if (isWeb) {
     return (
       <View style={[styles.webRoot, { backgroundColor: theme.colors.background }]}>
         <View style={[styles.webInner, !isDesktop && { flexDirection: "column" }]}>
 
-          {/* ── DESKTOP: sidebar fijo ── */}
           {isDesktop && (
-            <View style={[
-              styles.sidebar,
-              { backgroundColor: theme.colors.surface, borderRightColor: theme.colors.outline },
-            ]}>
+            <View style={[styles.sidebar, { backgroundColor: theme.colors.surface, borderRightColor: theme.colors.outline }]}>
               <SidebarContent
                 selectedDate={selectedDate}
                 onSelectDate={setSelectedDate}
@@ -317,19 +323,14 @@ export default function TodayScreen() {
             </View>
           )}
 
-          {/* ── MÓVIL WEB: header con hamburguesa ── */}
           {!isDesktop && (
-            <View style={[
-              styles.mobileWebHeader,
-              { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outline },
-            ]}>
+            <View style={[styles.mobileWebHeader, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outline }]}>
               <TouchableOpacity
                 onPress={() => setDrawerOpen(true)}
                 style={[styles.hamburgerBtn, { backgroundColor: theme.colors.surfaceVariant }]}
               >
                 <Menu size={20} color={theme.colors.onSurface} strokeWidth={1.8} />
               </TouchableOpacity>
-
               <View style={styles.mobileWebTitleBlock}>
                 <Text style={[styles.mobileWebTitle, { color: theme.colors.onSurface }]}>
                   {LEAGUES[selectedLeague].flag} {LEAGUES[selectedLeague].name}
@@ -338,7 +339,6 @@ export default function TodayScreen() {
                   {selectedDate === today() ? "Hoy · " : ""}{selectedDate}
                 </Text>
               </View>
-
               <TouchableOpacity
                 onPress={toggleTheme}
                 style={[styles.hamburgerBtn, { backgroundColor: theme.colors.surfaceVariant }]}
@@ -351,7 +351,6 @@ export default function TodayScreen() {
             </View>
           )}
 
-          {/* ── Área principal ── */}
           <View style={[styles.webMain, !isDesktop && { paddingTop: 8, paddingHorizontal: 0 }]}>
             {isDesktop && (
               <View style={styles.webMainHeader}>
@@ -377,7 +376,6 @@ export default function TodayScreen() {
 
         </View>
 
-        {/* ── Drawer móvil web ── */}
         {!isDesktop && (
           <Drawer visible={drawerOpen} onClose={() => setDrawerOpen(false)}>
             <SidebarContent
@@ -395,7 +393,7 @@ export default function TodayScreen() {
     );
   }
 
-  // ─── Layout nativo (iOS / Android) ────────────────────────────────────────
+  // ─── Layout nativo ────────────────────────────────────────────────────────
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -444,11 +442,16 @@ export default function TodayScreen() {
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>Cargando partidos...</Text>
+          <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>
+            Cargando partidos...
+          </Text>
         </View>
       ) : error ? (
         <View style={styles.centered}>
-          <Text style={{ color: theme.colors.error }}>{error}</Text>
+          <Text style={{ fontSize: 32 }}>⚠️</Text>
+          <Text style={{ color: theme.colors.error, textAlign: "center", marginTop: 8 }}>
+            {error}
+          </Text>
           <TouchableOpacity onPress={() => loadFixtures()} style={styles.retryBtn}>
             <Text style={{ color: theme.colors.primary, fontWeight: "700" }}>Reintentar</Text>
           </TouchableOpacity>
@@ -483,33 +486,30 @@ export default function TodayScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Native
-  container:         { flex: 1 },
-  header:            { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
-  title:             { fontWeight: "800" },
-  themeBtn:          { padding: 10, borderRadius: 12 },
-  leagueRow:         { flexDirection: "row", paddingHorizontal: 16, marginBottom: 8 },
-  leagueTab:         { flex: 1, alignItems: "center", paddingVertical: 10 },
-  leagueTabText:     { fontSize: 12, fontWeight: "700" },
-  list:              { paddingVertical: 8, paddingBottom: 24 },
-  centered:          { flex: 1, justifyContent: "center", alignItems: "center", gap: 8, paddingTop: 60 },
-  retryBtn:          { marginTop: 8, padding: 12 },
-  emptyTitle:        { fontSize: 18, fontWeight: "700" },
-  // Web shared
-  webRoot:           { flex: 1 },
-  webInner:          { flex: 1, flexDirection: "row" },
-  sidebar:           { width: 280, borderRightWidth: 1 },
-  webMain:           { flex: 1, paddingTop: 24, paddingHorizontal: 24 },
-  webMainHeader:     { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 20 },
-  webDateTitle:      { fontSize: 22, fontWeight: "800" },
-  webDateSub:        { fontSize: 13, marginTop: 2 },
-  fixtureCount:      { fontSize: 13 },
-  webGrid:           { flexDirection: "row", flexWrap: "wrap" },
-  webCard:           { width: "50%" as any, minWidth: 300 },
-  // Mobile web header
-  mobileWebHeader:   { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
-  hamburgerBtn:      { padding: 10, borderRadius: 12 },
+  container:          { flex: 1 },
+  header:             { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
+  title:              { fontWeight: "800" },
+  themeBtn:           { padding: 10, borderRadius: 12 },
+  leagueRow:          { flexDirection: "row", paddingHorizontal: 16, marginBottom: 8 },
+  leagueTab:          { flex: 1, alignItems: "center", paddingVertical: 10 },
+  leagueTabText:      { fontSize: 12, fontWeight: "700" },
+  list:               { paddingVertical: 8, paddingBottom: 24 },
+  centered:           { flex: 1, justifyContent: "center", alignItems: "center", gap: 8, paddingTop: 60, paddingHorizontal: 32 },
+  retryBtn:           { marginTop: 8, padding: 12 },
+  emptyTitle:         { fontSize: 18, fontWeight: "700" },
+  webRoot:            { flex: 1 },
+  webInner:           { flex: 1, flexDirection: "row" },
+  sidebar:            { width: 280, borderRightWidth: 1 },
+  webMain:            { flex: 1, paddingTop: 24, paddingHorizontal: 24 },
+  webMainHeader:      { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 20 },
+  webDateTitle:       { fontSize: 22, fontWeight: "800" },
+  webDateSub:         { fontSize: 13, marginTop: 2 },
+  fixtureCount:       { fontSize: 13 },
+  webGrid:            { flexDirection: "row", flexWrap: "wrap" },
+  webCard:            { width: "50%" as any, minWidth: 300 },
+  mobileWebHeader:    { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
+  hamburgerBtn:       { padding: 10, borderRadius: 12 },
   mobileWebTitleBlock:{ flex: 1, alignItems: "center" },
-  mobileWebTitle:    { fontSize: 15, fontWeight: "800" },
-  mobileWebSub:      { fontSize: 11, marginTop: 1 },
+  mobileWebTitle:     { fontSize: 15, fontWeight: "800" },
+  mobileWebSub:       { fontSize: 11, marginTop: 1 },
 });
