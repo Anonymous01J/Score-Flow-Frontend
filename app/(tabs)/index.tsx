@@ -201,29 +201,32 @@ export default function TodayScreen() {
   // ─── FIX: usar ref para cancelar fetches obsoletos ────────────────────────
   const fetchIdRef = useRef(0);
 
+  // Guardar valores actuales en refs para acceder desde async sin stale closure
+  const leagueRef = useRef(selectedLeague);
+  const dateRef   = useRef(selectedDate);
+
+  useEffect(() => { leagueRef.current = selectedLeague; }, [selectedLeague]);
+  useEffect(() => { dateRef.current   = selectedDate;   }, [selectedDate]);
+
   const loadFixtures = useCallback(async (showRefresh = false) => {
-    // Incrementar ID de fetch — si llega una respuesta de un fetch anterior, se ignora
     const fetchId = ++fetchIdRef.current;
+    const league  = leagueRef.current;
+    const date    = dateRef.current;
 
     if (showRefresh) {
       setRefreshing(true);
     } else {
       setLoading(true);
-      setFixtures([]);   // ← limpiar fixtures al iniciar nueva carga
+      setFixtures([]);
     }
     setError(null);
 
     try {
-      const data = await api.getFixtures(selectedLeague, selectedDate);
-
-      // Solo actualizar si este fetch sigue siendo el más reciente
+      const data = await api.getFixtures(league, date);
       if (fetchId !== fetchIdRef.current) return;
-
       setFixtures(data);
     } catch (e: any) {
       if (fetchId !== fetchIdRef.current) return;
-
-      // Distinguir rate limit (429) de error genérico
       const msg = e?.message?.includes("429")
         ? "Límite de requests alcanzado. Espera un momento e intenta de nuevo."
         : "No se pudieron cargar los partidos.";
@@ -234,11 +237,12 @@ export default function TodayScreen() {
         setRefreshing(false);
       }
     }
-  }, [selectedLeague, selectedDate]);
+  }, []); // ← sin dependencias: usa refs para leer valores actuales
 
+  // Disparar carga cada vez que cambia liga o fecha
   useEffect(() => {
     loadFixtures();
-  }, [loadFixtures]);
+  }, [selectedLeague, selectedDate]); // ← dependencias explícitas aquí
 
   const handleFixturePress = (fixture: Fixture) => {
     router.push({
