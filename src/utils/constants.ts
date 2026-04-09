@@ -34,8 +34,11 @@ export const QUALITY_LABELS = {
   baja:  { label: "Baja confianza",  color: "#ef4444" },
 };
 
-export const MARKET_LABELS = {
-  "1": "Local",
-  "X": "Empate",
-  "2": "Visitante",
+export const MARKET_LABELS: Record<string, string> = {
+  "1":        "Local gana",
+  "X":        "Empate",
+  "2":        "Visitante gana",
+  "btts":     "Ambos marcan",
+  "over_25":  "Más de 2.5 goles",
+  "under_25": "Menos de 2.5 goles",
 };

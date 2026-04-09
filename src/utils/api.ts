@@ -7,6 +7,17 @@ async function fetchAPI<T>(endpoint: string): Promise<T> {
   return res.json();
 }
 
+// ─── Odds V2: todos los mercados ──────────────────────────────────────────────
+
+export interface OddsInput {
+  home?: number;
+  draw?: number;
+  away?: number;
+  btts?: number;
+  over_25?: number;
+  under_25?: number;
+}
+
 export const api = {
   // Ligas disponibles
   getLeagues: (): Promise<{ leagues: League[] }> =>
@@ -16,28 +27,33 @@ export const api = {
   getFixtures: (league: LeagueKey, date: string): Promise<Fixture[]> =>
     fetchAPI(`/fixtures?league=${league}&date=${date}`),
 
-  // Predicción de un partido
+  // Predicción completa V2
   getPrediction: (
     fixtureId: number,
     league: LeagueKey,
-    odds?: { home?: number; draw?: number; away?: number }
+    odds?: OddsInput,
   ): Promise<Prediction> => {
-    let url = `/predict/${fixtureId}?league=${league}`;
-    if (odds?.home)  url += `&odds_home=${odds.home}`;
-    if (odds?.draw)  url += `&odds_draw=${odds.draw}`;
-    if (odds?.away)  url += `&odds_away=${odds.away}`;
-    return fetchAPI(url);
+    const params = new URLSearchParams({ league });
+
+    if (odds?.home)     params.append("odds_home",     String(odds.home));
+    if (odds?.draw)     params.append("odds_draw",     String(odds.draw));
+    if (odds?.away)     params.append("odds_away",     String(odds.away));
+    if (odds?.btts)     params.append("odds_btts",     String(odds.btts));
+    if (odds?.over_25)  params.append("odds_over_25",  String(odds.over_25));
+    if (odds?.under_25) params.append("odds_under_25", String(odds.under_25));
+
+    return fetchAPI(`/predict/${fixtureId}?${params.toString()}`);
   },
 
   /**
    * Busca los próximos N partidos de una liga iterando fechas desde hoy.
-   * Solo incluye partidos con status programado (NS, TBD, SCHEDULED...).
+   * Solo incluye partidos con status programado.
    * Busca hasta maxDays días hacia adelante.
    */
   getUpcomingFixtures: async (
     league: LeagueKey,
     count: number = 5,
-    maxDays: number = 30
+    maxDays: number = 30,
   ): Promise<Fixture[]> => {
     const UPCOMING_STATUSES = ["NS", "TBD", "SCHED", "SCHEDULED", "NOT_STARTED"];
     const upcoming: Fixture[] = [];
@@ -50,10 +66,10 @@ export const api = {
 
       try {
         const fixtures = await fetchAPI<Fixture[]>(
-          `/fixtures?league=${league}&date=${dateStr}`
+          `/fixtures?league=${league}&date=${dateStr}`,
         );
         const scheduled = fixtures.filter((f) =>
-          UPCOMING_STATUSES.includes((f.status ?? "").toUpperCase())
+          UPCOMING_STATUSES.includes((f.status ?? "").toUpperCase()),
         );
         upcoming.push(...scheduled);
       } catch {

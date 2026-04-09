@@ -33,7 +33,7 @@ export interface League {
   season: number;
 }
 
-// ─── Predicciones ─────────────────────────────────────────────────────────────
+// ─── Predicciones V2 ──────────────────────────────────────────────────────────
 
 export interface ScorelineProbability {
   home: number;
@@ -41,11 +41,22 @@ export interface ScorelineProbability {
   probability: number;
 }
 
+export type MarketKey = "1" | "X" | "2" | "btts" | "over_25" | "under_25";
+
 export interface ValueBet {
-  market: "1" | "X" | "2";
+  market: MarketKey;
   model_prob: number;
   bookmaker_prob: number;
   edge: number;
+}
+
+export interface H2HSummary {
+  total_matches: number;
+  home_wins: number;
+  draws: number;
+  away_wins: number;
+  avg_goals_home: number;
+  avg_goals_away: number;
 }
 
 export interface Prediction {
@@ -54,16 +65,41 @@ export interface Prediction {
   away_team: string;
   league: LeagueKey;
   match_date: string;
+
+  // Lambdas
   lambda_home: number;
   lambda_away: number;
+  expected_goals_total: number;
+
+  // Elo
+  elo_home: number;
+  elo_away: number;
+  elo_adjustment: number;
+  h2h_adjustment: number;
+  h2h_available: boolean;
+  h2h_summary: H2HSummary | null;
+
+  // 1X2
   prob_home_win: number;
   prob_draw: number;
   prob_away_win: number;
+
+  // Mercados V2
+  prob_btts: number;
+  prob_over_25: number;
+  prob_under_25: number;
+
+  // Marcadores
   top_scorelines: ScorelineProbability[];
+
+  // Confianza
   sample_quality: "alta" | "media" | "baja";
   home_form_weight: number;
   away_form_weight: number;
+
+  // Value bets
   value_bets: ValueBet[];
+
   model_version: string;
   cached: boolean;
 }
