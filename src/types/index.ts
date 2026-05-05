@@ -24,7 +24,13 @@ export type FixtureStatus =
 
 // ─── Ligas ────────────────────────────────────────────────────────────────────
 
-export type LeagueKey = "premier_league" | "la_liga" | "champions_league";
+export type LeagueKey =
+  | "premier_league"
+  | "la_liga"
+  | "bundesliga"
+  | "serie_a"
+  | "ligue_1"
+  | "champions_league";
 
 export interface League {
   key: LeagueKey;
