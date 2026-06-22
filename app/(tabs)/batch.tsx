@@ -166,10 +166,12 @@ export default function BatchScreen() {
     setProgress({ done: 0, total: 0 });
 
     try {
-      let dates: string[] = [];
-      if (dateMode === "today") dates = [new Date().toISOString().split("T")[0]];
-      else if (dateMode === "specific") dates = [specificDate];
-      else dates = getDatesBetween(fromDate, toDate);
+      const dates = getDatesBetween(fromDate, toDate);
+      if (dates.length === 0) {
+        alert("Rango de fechas inválido");
+        setIsRunning(false);
+        return;
+      }
 
       // --- 1. BÚSQUEDA DE PARTIDOS ---
       const allFixtures: (Fixture & { league?: string })[] = [];
