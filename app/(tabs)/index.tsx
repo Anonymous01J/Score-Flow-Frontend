@@ -249,7 +249,7 @@ export default function TodayScreen() {
   const windowWidth = useWindowWidth();
   const isDesktop   = isWeb && windowWidth >= 768;
 
-  const [selectedLeague, setSelectedLeague] = useState<LeagueKey>("premier_league");
+  const [selectedLeague, setSelectedLeague] = useState<LeagueKey>("world_cup");
   const [selectedDate, setSelectedDate]     = useState(today());
   const [fixtures, setFixtures]             = useState<Fixture[]>([]);
   const [loading, setLoading]               = useState(true);

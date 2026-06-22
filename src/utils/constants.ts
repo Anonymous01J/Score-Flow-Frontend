@@ -2,6 +2,14 @@
 export const API_BASE_URL = "https://scoreflow-backend.vercel.app/api";
 
 export const LEAGUES = {
+  world_cup: {
+    key: "world_cup",
+    name: "World Cup",
+    country: "World",
+    flag: "🌍",
+    color: "#8a1538",
+    accentColor: "#eab308",
+  },
   premier_league: {
     key: "premier_league",
     name: "Premier League",
@@ -49,14 +57,6 @@ export const LEAGUES = {
     flag: "🇪🇺",
     color: "#001489",
     accentColor: "#ffffff",
-  },
-  world_cup: {
-    key: "world_cup",
-    name: "World Cup",
-    country: "World",
-    flag: "🌍",
-    color: "#8a1538",
-    accentColor: "#eab308",
   },
 } as const;
 

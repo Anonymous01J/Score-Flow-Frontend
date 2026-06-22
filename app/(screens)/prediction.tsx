@@ -447,7 +447,7 @@ export default function PredictionScreen() {
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
 
-  const league     = (params.league as LeagueKey) || "premier_league";
+  const league     = (params.league as LeagueKey) || "world_cup";
   const leagueInfo = LEAGUES[league];
 
   useEffect(() => {
