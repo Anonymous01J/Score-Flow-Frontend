@@ -6,7 +6,12 @@ import type { Prediction } from "../types";
 
 export default function ValueBetsCalculator({ prediction }: { prediction: Prediction }) {
   const theme = useTheme();
-  const [odds, setOdds] = useState({ home: "", draw: "", away: "", btts: "", over: "", under: "" });
+  const [odds, setOdds] = useState({ 
+    home: "", draw: "", away: "", 
+    btts: "", over: "", under: "",
+    dc1X: "", dc12: "", dcX2: "",
+    dnb1: "", dnb2: ""
+  });
   const [bankroll, setBankroll] = useState("");
   const [kellyFraction, setKellyFraction] = useState<"quarter" | "half">("quarter");
 
@@ -52,11 +57,23 @@ export default function ValueBetsCalculator({ prediction }: { prediction: Predic
     return { oddStr, implied, edge, kellyPct };
   };
 
+  const p1X = prediction.prob_home_win + prediction.prob_draw;
+  const p12 = prediction.prob_home_win + prediction.prob_away_win;
+  const pX2 = prediction.prob_draw + prediction.prob_away_win;
+  
+  const pDnb1 = prediction.prob_home_win / (prediction.prob_home_win + prediction.prob_away_win);
+  const pDnb2 = prediction.prob_away_win / (prediction.prob_home_win + prediction.prob_away_win);
+
   const results = [
-    { label: "Local", prob: prediction.prob_home_win, odd: odds.home },
-    { label: "Empate", prob: prediction.prob_draw, odd: odds.draw },
-    { label: "Visitante", prob: prediction.prob_away_win, odd: odds.away },
-    { label: "Ambos Marcan", prob: prediction.prob_btts, odd: odds.btts },
+    { label: "Local (1)", prob: prediction.prob_home_win, odd: odds.home },
+    { label: "Empate (X)", prob: prediction.prob_draw, odd: odds.draw },
+    { label: "Visitante (2)", prob: prediction.prob_away_win, odd: odds.away },
+    { label: "1X (Local o Empate)", prob: p1X, odd: odds.dc1X },
+    { label: "12 (Cualquiera Gana)", prob: p12, odd: odds.dc12 },
+    { label: "X2 (Empate o Visitante)", prob: pX2, odd: odds.dcX2 },
+    { label: "Local S/E (DNB)", prob: pDnb1, odd: odds.dnb1 },
+    { label: "Visitante S/E (DNB)", prob: pDnb2, odd: odds.dnb2 },
+    { label: "Ambos Marcan (BTTS)", prob: prediction.prob_btts, odd: odds.btts },
     { label: "Over 2.5", prob: prediction.prob_over_25, odd: odds.over },
     { label: "Under 2.5", prob: prediction.prob_under_25, odd: odds.under },
   ].map(r => ({ ...r, res: calcEdge(r.prob, r.odd) })).filter(r => r.res !== null);
@@ -113,7 +130,7 @@ export default function ValueBetsCalculator({ prediction }: { prediction: Predic
           <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>1 (Local)</Text>
           <TextInput
             style={[styles.input, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
-            keyboardType="numbers-and-punctuation"
+            keyboardType="numeric"
             placeholder="Ej: +120"
             placeholderTextColor={theme.colors.onSurfaceVariant + "80"}
             value={odds.home}
@@ -124,7 +141,7 @@ export default function ValueBetsCalculator({ prediction }: { prediction: Predic
           <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>X (Empate)</Text>
           <TextInput
             style={[styles.input, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
-            keyboardType="numbers-and-punctuation"
+            keyboardType="numeric"
             placeholder="Ej: +220"
             placeholderTextColor={theme.colors.onSurfaceVariant + "80"}
             value={odds.draw}
@@ -135,7 +152,7 @@ export default function ValueBetsCalculator({ prediction }: { prediction: Predic
           <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>2 (Visit)</Text>
           <TextInput
             style={[styles.input, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
-            keyboardType="numbers-and-punctuation"
+            keyboardType="numeric"
             placeholder="Ej: -150"
             placeholderTextColor={theme.colors.onSurfaceVariant + "80"}
             value={odds.away}
@@ -144,10 +161,67 @@ export default function ValueBetsCalculator({ prediction }: { prediction: Predic
         </View>
 
         <View style={styles.inputGroup}>
+          <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>1X</Text>
+          <TextInput
+            style={[styles.input, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
+            keyboardType="numeric"
+            placeholder="-200"
+            placeholderTextColor={theme.colors.onSurfaceVariant + "80"}
+            value={odds.dc1X}
+            onChangeText={t => handleTextChange("dc1X", t)}
+          />
+        </View>
+        <View style={styles.inputGroup}>
+          <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>12</Text>
+          <TextInput
+            style={[styles.input, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
+            keyboardType="numeric"
+            placeholder="-350"
+            placeholderTextColor={theme.colors.onSurfaceVariant + "80"}
+            value={odds.dc12}
+            onChangeText={t => handleTextChange("dc12", t)}
+          />
+        </View>
+        <View style={styles.inputGroup}>
+          <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>X2</Text>
+          <TextInput
+            style={[styles.input, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
+            keyboardType="numeric"
+            placeholder="+110"
+            placeholderTextColor={theme.colors.onSurfaceVariant + "80"}
+            value={odds.dcX2}
+            onChangeText={t => handleTextChange("dcX2", t)}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>DNB 1</Text>
+          <TextInput
+            style={[styles.input, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
+            keyboardType="numeric"
+            placeholder="-150"
+            placeholderTextColor={theme.colors.onSurfaceVariant + "80"}
+            value={odds.dnb1}
+            onChangeText={t => handleTextChange("dnb1", t)}
+          />
+        </View>
+        <View style={styles.inputGroup}>
+          <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>DNB 2</Text>
+          <TextInput
+            style={[styles.input, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
+            keyboardType="numeric"
+            placeholder="+130"
+            placeholderTextColor={theme.colors.onSurfaceVariant + "80"}
+            value={odds.dnb2}
+            onChangeText={t => handleTextChange("dnb2", t)}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
           <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>BTTS</Text>
           <TextInput
             style={[styles.input, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
-            keyboardType="numbers-and-punctuation"
+            keyboardType="numeric"
             placeholder="Ej: -110"
             placeholderTextColor={theme.colors.onSurfaceVariant + "80"}
             value={odds.btts}
@@ -158,7 +232,7 @@ export default function ValueBetsCalculator({ prediction }: { prediction: Predic
           <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>O 2.5</Text>
           <TextInput
             style={[styles.input, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
-            keyboardType="numbers-and-punctuation"
+            keyboardType="numeric"
             placeholder="Ej: -105"
             placeholderTextColor={theme.colors.onSurfaceVariant + "80"}
             value={odds.over}
@@ -169,7 +243,7 @@ export default function ValueBetsCalculator({ prediction }: { prediction: Predic
           <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>U 2.5</Text>
           <TextInput
             style={[styles.input, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
-            keyboardType="numbers-and-punctuation"
+            keyboardType="numeric"
             placeholder="Ej: -115"
             placeholderTextColor={theme.colors.onSurfaceVariant + "80"}
             value={odds.under}

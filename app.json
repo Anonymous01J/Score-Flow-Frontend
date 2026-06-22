@@ -38,6 +38,12 @@
     "experiments": {
       "typedRoutes": true
     },
-    "scheme": "scoreflow"
+    "scheme": "scoreflow",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2ec7763f-13b2-4c35-b844-a56f95424fca"
+      }
+    }
   }
 }

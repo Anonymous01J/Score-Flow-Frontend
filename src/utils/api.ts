@@ -10,6 +10,7 @@ class RateLimiter {
   private limit = 10;
   private isPaused = false;
   private secondsLeft = 0;
+  private lastHitTime = 0;
   private listeners: Set<RateLimitListener> = new Set();
 
   subscribe(fn: RateLimitListener) {
@@ -24,13 +25,21 @@ class RateLimiter {
   }
 
   async hit() {
+    const now = Date.now();
+    // Reiniciar contador si han pasado 60 segundos naturales sin peticiones
+    if (this.lastHitTime > 0 && now - this.lastHitTime >= 60000) {
+        this.count = 0;
+    }
+    
     // Si ya estamos en pausa, esperamos a que termine
     while (this.isPaused) {
       await new Promise((r) => setTimeout(r, 500));
     }
 
     this.count++;
-    if (this.count > 0 && this.count % this.limit === 0) {
+    this.lastHitTime = Date.now();
+
+    if (this.count >= this.limit) {
       this.isPaused = true;
       this.secondsLeft = 66; // 1.1 min
       this.notify();
@@ -42,6 +51,8 @@ class RateLimiter {
       }
 
       this.isPaused = false;
+      this.count = 0; // Reiniciamos contador tras pausa
+      this.lastHitTime = Date.now();
       this.notify();
     }
   }

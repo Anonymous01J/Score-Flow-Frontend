@@ -11,6 +11,7 @@ import {
 } from "lucide-react-native";
 import { api } from "../../src/utils/api";
 import { formatTelegramMessage } from "../../src/utils/telegramFormat";
+import { computeConfidence } from "../../src/utils/confidence";
 import * as Clipboard from "expo-clipboard";
 import { LEAGUES, QUALITY_LABELS, MARKET_LABELS } from "../../src/utils/constants";
 import type { Prediction, LeagueKey, H2HSummary } from "../../src/types";
@@ -345,12 +346,48 @@ const h2hStyles = StyleSheet.create({
 function MarketsSection({ prediction }: { prediction: Prediction }) {
   const theme = useTheme();
 
+  const p1X = prediction.prob_home_win + prediction.prob_draw;
+  const p12 = prediction.prob_home_win + prediction.prob_away_win;
+  const pX2 = prediction.prob_draw + prediction.prob_away_win;
+  const pDnb1 = prediction.prob_home_win / (prediction.prob_home_win + prediction.prob_away_win);
+  const pDnb2 = prediction.prob_away_win / (prediction.prob_home_win + prediction.prob_away_win);
+
   const markets = [
+    {
+      label: "Local o Empate",
+      sublabel: "1X (Double Chance)",
+      prob: p1X,
+      color: "#10b981", // Emerald
+    },
+    {
+      label: "Local o Visitante",
+      sublabel: "12 (Double Chance)",
+      prob: p12,
+      color: "#8b5cf6", // Purple
+    },
+    {
+      label: "Empate o Visitante",
+      sublabel: "X2 (Double Chance)",
+      prob: pX2,
+      color: "#ec4899", // Pink
+    },
+    {
+      label: "Local (S/Empate)",
+      sublabel: "Draw No Bet (1)",
+      prob: pDnb1,
+      color: "#3b82f6", // Blue
+    },
+    {
+      label: "Visitante (S/Empate)",
+      sublabel: "Draw No Bet (2)",
+      prob: pDnb2,
+      color: "#f43f5e", // Rose
+    },
     {
       label: "Ambos marcan",
       sublabel: "BTTS",
       prob: prediction.prob_btts,
-      color: "#8b5cf6",
+      color: "#6366f1", // Indigo
     },
     {
       label: "Más de 2.5",
@@ -473,28 +510,6 @@ export default function PredictionScreen() {
   const totalProb = prediction
     ? prediction.prob_home_win + prediction.prob_draw + prediction.prob_away_win
     : 0;
-
-  const computeConfidence = (p: Prediction) => {
-    // 1. Sample weight (max 50)
-    const totalWeight = p.home_form_weight + p.away_form_weight;
-    const sampleScore = Math.min(50, (totalWeight / 12) * 50);
-    
-    // 2. Elo difference (max 20)
-    const eloDiff = Math.abs(p.elo_home - p.elo_away);
-    const eloScore = Math.min(20, (eloDiff / 200) * 20);
-    
-    // 3. Decisiveness (max 20)
-    const totalLambda = p.lambda_home + p.lambda_away;
-    const maxLambda = Math.max(p.lambda_home, p.lambda_away);
-    const maxProb = totalLambda > 0 ? maxLambda / totalLambda : 0.33;
-    const decisiveness = Math.min(20, Math.max(0, ((maxProb - 0.33) / 0.40) * 20));
-    
-    // 4. Base recency (10)
-    const recency = totalWeight > 0 ? 10 : 0;
-    
-    const total = sampleScore + eloScore + decisiveness + recency;
-    return Math.min(99.9, Math.max(10.0, total));
-  };
 
   const confidenceScore = prediction ? computeConfidence(prediction) : 0;
 

@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import { useTheme as usePaperTheme } from "react-native-paper";
 import { useTheme } from "../../src/store/AppContext";
-import { Calendar, Trophy, Star } from "lucide-react-native";
+import { Calendar, Trophy, Star, Radar } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabsLayout() {
@@ -57,6 +57,15 @@ export default function TabsLayout() {
           title: "Favoritos",
           tabBarIcon: ({ color, size }) => (
             <Star size={size} color={color} strokeWidth={1.8} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="batch"
+        options={{
+          title: "Lote",
+          tabBarIcon: ({ color, size }) => (
+            <Radar size={size} color={color} strokeWidth={1.8} />
           ),
         }}
       />

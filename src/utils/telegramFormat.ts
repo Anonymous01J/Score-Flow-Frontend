@@ -1,5 +1,6 @@
 import { Prediction } from "../types";
 import { LEAGUES, QUALITY_LABELS, MARKET_LABELS } from "./constants";
+import { computeConfidence } from "./confidence";
 
 export function formatTelegramMessage(pred: Prediction): string {
   const leagueInfo = LEAGUES[pred.league];
@@ -9,6 +10,7 @@ export function formatTelegramMessage(pred: Prediction): string {
   const qInfo = QUALITY_LABELS[pred.sample_quality];
   const qLabel = qInfo?.label || pred.sample_quality;
   const qEmoji = pred.sample_quality === "alta" ? "🟢" : pred.sample_quality === "media" ? "🟡" : "🔴";
+  const confScore = computeConfidence(pred).toFixed(1);
 
   // Determinar favorito
   const probs = [
@@ -45,7 +47,7 @@ export function formatTelegramMessage(pred: Prediction): string {
 
 🔮 Favorito: ${topEmoji} ${topLabel} (${(topOutcome.v * 100).toFixed(1)}%)
 📐 Exp. Goals: ${pred.lambda_home.toFixed(2)} – ${pred.lambda_away.toFixed(2)}
-${qEmoji} Confianza: ${qLabel}
+${qEmoji} Confianza: ${qLabel} (${confScore}%)
 ${valueBetsBlock}
 #ScoreFlow #${hashtagLeague} #Predicciones`;
 }
