@@ -294,15 +294,9 @@ export default function TodayScreen() {
   useEffect(() => { loadFixtures(); }, [selectedLeague, selectedDate]);
 
   const handleFixturePress = (fixture: Fixture) => {
-    router.push({
-      pathname: "/(screens)/prediction",
-      params: {
-        fixture_id: fixture.fixture_id,
-        league:     fixture.league,
-        home_team:  fixture.home_team,
-        away_team:  fixture.away_team,
-      },
-    });
+    router.push(
+      `/(screens)/prediction?fixture_id=${fixture.fixture_id}&league=${fixture.league}&home_team=${encodeURIComponent(fixture.home_team)}&away_team=${encodeURIComponent(fixture.away_team)}`
+    );
   };
 
   // ─── Contenido central ────────────────────────────────────────────────────

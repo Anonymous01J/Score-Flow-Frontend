@@ -12,10 +12,9 @@ export default function FavoritesScreen() {
   const { favorites } = useFavorites();
 
   const handlePress = (fixtureId: number, league: string, home: string, away: string) => {
-    router.push({
-      pathname: "/(screens)/prediction",
-      params: { fixture_id: fixtureId, league, home_team: home, away_team: away },
-    });
+    router.push(
+      `/(screens)/prediction?fixture_id=${fixtureId}&league=${league}&home_team=${encodeURIComponent(home)}&away_team=${encodeURIComponent(away)}`
+    );
   };
 
   return (

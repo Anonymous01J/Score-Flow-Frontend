@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet, TextInput } from "react-native";
+import { View, StyleSheet, TextInput, TouchableOpacity } from "react-native";
 import { Text, Surface, useTheme } from "react-native-paper";
 import { Calculator } from "lucide-react-native";
 import type { Prediction } from "../types";
@@ -7,13 +7,49 @@ import type { Prediction } from "../types";
 export default function ValueBetsCalculator({ prediction }: { prediction: Prediction }) {
   const theme = useTheme();
   const [odds, setOdds] = useState({ home: "", draw: "", away: "", btts: "", over: "", under: "" });
+  const [bankroll, setBankroll] = useState("");
+  const [kellyFraction, setKellyFraction] = useState<"quarter" | "half">("quarter");
 
   const calcEdge = (modelProb: number, oddStr: string) => {
+    if (!oddStr) return null;
     const odd = parseFloat(oddStr.replace(",", "."));
-    if (isNaN(odd) || odd <= 1.0) return null;
-    const implied = 1 / odd;
+    if (isNaN(odd)) return null;
+
+    let implied = 0;
+    let decimalOdd = 0;
+    
+    // Detectar cuota americana: tiene signo explícito o es >= 100 / <= -100
+    if (oddStr.includes('+') || oddStr.includes('-') || Math.abs(odd) >= 100) {
+      if (odd > 0) {
+        implied = 100 / (odd + 100);
+        decimalOdd = (odd / 100) + 1;
+      } else if (odd < 0) {
+        implied = Math.abs(odd) / (Math.abs(odd) + 100);
+        decimalOdd = (100 / Math.abs(odd)) + 1;
+      } else {
+        return null;
+      }
+    } else {
+      // Decimal normal
+      if (odd <= 1.0) return null;
+      implied = 1 / odd;
+      decimalOdd = odd;
+    }
+
     const edge = modelProb - implied;
-    return { odd, implied, edge };
+    
+    let kellyPct = 0;
+    const b = decimalOdd - 1;
+    if (b > 0 && edge > 0) {
+      const p = modelProb;
+      const q = 1 - p;
+      const fullKelly = (b * p - q) / b;
+      if (fullKelly > 0) {
+        kellyPct = kellyFraction === "half" ? fullKelly / 2 : fullKelly / 4;
+      }
+    }
+
+    return { oddStr, implied, edge, kellyPct };
   };
 
   const results = [
@@ -25,6 +61,12 @@ export default function ValueBetsCalculator({ prediction }: { prediction: Predic
     { label: "Under 2.5", prob: prediction.prob_under_25, odd: odds.under },
   ].map(r => ({ ...r, res: calcEdge(r.prob, r.odd) })).filter(r => r.res !== null);
 
+  const handleTextChange = (key: keyof typeof odds, text: string) => {
+    // Filtro para eliminar letras y dejar solo números, +, -, punto y coma
+    const filtered = text.replace(/[^0-9\+\-\.,]/g, '');
+    setOdds({ ...odds, [key]: filtered });
+  };
+
   return (
     <Surface style={[styles.card, { backgroundColor: theme.colors.surface }]} elevation={1}>
       <View style={styles.header}>
@@ -32,41 +74,72 @@ export default function ValueBetsCalculator({ prediction }: { prediction: Predic
         <Text style={[styles.title, { color: theme.colors.onSurface }]}>Calculadora Manual</Text>
       </View>
       <Text style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
-        Ingresa las cuotas de tu casa de apuestas para encontrar valor.
+        Ingresa las cuotas de tu casa de apuestas para encontrar valor. (Ej: 2.10, -450, +120)
       </Text>
+
+      <View style={styles.bankrollSection}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>Fondos ($)</Text>
+          <TextInput
+            style={[styles.input, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
+            keyboardType="numeric"
+            placeholder="Ej: 1000"
+            placeholderTextColor={theme.colors.onSurfaceVariant + "80"}
+            value={bankroll}
+            onChangeText={t => setBankroll(t.replace(/[^0-9\.]/g, ''))}
+          />
+        </View>
+        <View style={{ flex: 1.2 }}>
+          <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>Estrategia</Text>
+          <View style={[styles.toggleGroup, { borderColor: theme.colors.outline }]}>
+            <TouchableOpacity 
+              style={[styles.toggleBtn, kellyFraction === "quarter" && { backgroundColor: theme.colors.primary }]}
+              onPress={() => setKellyFraction("quarter")}
+            >
+              <Text style={[styles.toggleText, { color: kellyFraction === "quarter" ? theme.colors.onPrimary : theme.colors.onSurface }]}>Kelly 1/4</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.toggleBtn, kellyFraction === "half" && { backgroundColor: theme.colors.primary, borderLeftColor: theme.colors.primary }]}
+              onPress={() => setKellyFraction("half")}
+            >
+              <Text style={[styles.toggleText, { color: kellyFraction === "half" ? theme.colors.onPrimary : theme.colors.onSurface }]}>Kelly 1/2</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
 
       <View style={styles.grid}>
         <View style={styles.inputGroup}>
           <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>1 (Local)</Text>
           <TextInput
             style={[styles.input, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
-            keyboardType="numeric"
-            placeholder="Ej: 2.10"
+            keyboardType="numbers-and-punctuation"
+            placeholder="Ej: +120"
             placeholderTextColor={theme.colors.onSurfaceVariant + "80"}
             value={odds.home}
-            onChangeText={t => setOdds({ ...odds, home: t })}
+            onChangeText={t => handleTextChange("home", t)}
           />
         </View>
         <View style={styles.inputGroup}>
           <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>X (Empate)</Text>
           <TextInput
             style={[styles.input, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
-            keyboardType="numeric"
-            placeholder="Ej: 3.20"
+            keyboardType="numbers-and-punctuation"
+            placeholder="Ej: +220"
             placeholderTextColor={theme.colors.onSurfaceVariant + "80"}
             value={odds.draw}
-            onChangeText={t => setOdds({ ...odds, draw: t })}
+            onChangeText={t => handleTextChange("draw", t)}
           />
         </View>
         <View style={styles.inputGroup}>
           <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>2 (Visit)</Text>
           <TextInput
             style={[styles.input, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
-            keyboardType="numeric"
-            placeholder="Ej: 3.50"
+            keyboardType="numbers-and-punctuation"
+            placeholder="Ej: -150"
             placeholderTextColor={theme.colors.onSurfaceVariant + "80"}
             value={odds.away}
-            onChangeText={t => setOdds({ ...odds, away: t })}
+            onChangeText={t => handleTextChange("away", t)}
           />
         </View>
 
@@ -74,33 +147,33 @@ export default function ValueBetsCalculator({ prediction }: { prediction: Predic
           <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>BTTS</Text>
           <TextInput
             style={[styles.input, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
-            keyboardType="numeric"
-            placeholder="Ej: 1.80"
+            keyboardType="numbers-and-punctuation"
+            placeholder="Ej: -110"
             placeholderTextColor={theme.colors.onSurfaceVariant + "80"}
             value={odds.btts}
-            onChangeText={t => setOdds({ ...odds, btts: t })}
+            onChangeText={t => handleTextChange("btts", t)}
           />
         </View>
         <View style={styles.inputGroup}>
           <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>O 2.5</Text>
           <TextInput
             style={[styles.input, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
-            keyboardType="numeric"
-            placeholder="Ej: 1.95"
+            keyboardType="numbers-and-punctuation"
+            placeholder="Ej: -105"
             placeholderTextColor={theme.colors.onSurfaceVariant + "80"}
             value={odds.over}
-            onChangeText={t => setOdds({ ...odds, over: t })}
+            onChangeText={t => handleTextChange("over", t)}
           />
         </View>
         <View style={styles.inputGroup}>
           <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>U 2.5</Text>
           <TextInput
             style={[styles.input, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
-            keyboardType="numeric"
-            placeholder="Ej: 1.90"
+            keyboardType="numbers-and-punctuation"
+            placeholder="Ej: -115"
             placeholderTextColor={theme.colors.onSurfaceVariant + "80"}
             value={odds.under}
-            onChangeText={t => setOdds({ ...odds, under: t })}
+            onChangeText={t => handleTextChange("under", t)}
           />
         </View>
       </View>
@@ -113,11 +186,16 @@ export default function ValueBetsCalculator({ prediction }: { prediction: Predic
             const color = isValue ? "#22c55e" : theme.colors.error;
             return (
               <View key={i} style={[styles.resultRow, i > 0 && { borderTopWidth: 1, borderTopColor: theme.colors.outline }]}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={[styles.resLabel, { color: theme.colors.onSurface }]}>{r.label}</Text>
                   <Text style={[styles.resSub, { color: theme.colors.onSurfaceVariant }]}>
                     Implícito: {(r.res!.implied * 100).toFixed(1)}% | Modelo: {(r.prob * 100).toFixed(1)}%
                   </Text>
+                  {isValue && bankroll && r.res!.kellyPct > 0 ? (
+                    <Text style={[styles.resBet, { color: theme.colors.primary }]}>
+                      • Apostar: ${ (parseFloat(bankroll) * r.res!.kellyPct).toFixed(2) } ({ (r.res!.kellyPct * 100).toFixed(1) }%)
+                    </Text>
+                  ) : null}
                 </View>
                 <View style={[styles.edgeBadge, { backgroundColor: color + "20" }]}>
                   <Text style={{ color, fontWeight: "800", fontSize: 13 }}>
@@ -146,5 +224,10 @@ const styles = StyleSheet.create({
   resultRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14 },
   resLabel: { fontSize: 15, fontWeight: "800", marginBottom: 4 },
   resSub: { fontSize: 12 },
-  edgeBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  resBet: { fontSize: 12, fontWeight: "800", marginTop: 4 },
+  edgeBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, marginLeft: 10 },
+  bankrollSection: { flexDirection: "row", gap: 12, marginBottom: 20 },
+  toggleGroup: { flexDirection: "row", borderWidth: 1, borderRadius: 10, overflow: "hidden", height: 40 },
+  toggleBtn: { flex: 1, justifyContent: "center", alignItems: "center" },
+  toggleText: { fontSize: 12, fontWeight: "700" },
 });

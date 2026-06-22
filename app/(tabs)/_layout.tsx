@@ -2,10 +2,12 @@ import { Tabs } from "expo-router";
 import { useTheme as usePaperTheme } from "react-native-paper";
 import { useTheme } from "../../src/store/AppContext";
 import { Calendar, Trophy, Star } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabsLayout() {
   const paperTheme = usePaperTheme();
   const { isDark } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const bg     = paperTheme.colors.surface;
   const active = paperTheme.colors.primary;
@@ -19,8 +21,8 @@ export default function TabsLayout() {
           backgroundColor: bg,
           borderTopColor: isDark ? "#1e293b" : "#e2e8f0",
           borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
+          height: 60 + insets.bottom,
+          paddingBottom: 8 + insets.bottom,
           paddingTop: 8,
         },
         tabBarActiveTintColor:   active,
