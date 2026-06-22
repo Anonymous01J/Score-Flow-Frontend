@@ -599,8 +599,8 @@ export default function PredictionScreen() {
               prediction.prob_home_win > prediction.prob_away_win
               ? `victoria local (${(prediction.prob_home_win * 100).toFixed(1)}%)`
               : prediction && prediction.prob_draw > prediction.prob_away_win
-              ? `empate (${(prediction?.prob_draw * 100).toFixed(1)}%)`
-              : `victoria visitante (${(prediction?.prob_away_win * 100).toFixed(1)}%)`}
+              ? `empate (${((prediction?.prob_draw ?? 0) * 100).toFixed(1)}%)`
+              : `victoria visitante (${((prediction?.prob_away_win ?? 0) * 100).toFixed(1)}%)`}
           </Text>.
         </Text>
       </Surface>
@@ -749,7 +749,7 @@ export default function PredictionScreen() {
         </Text>
       </Surface>
 
-      <ValueBetsCalculator prediction={prediction} />
+      {prediction && <ValueBetsCalculator prediction={prediction} />}
 
       <View style={{ height: 100 }} />
 

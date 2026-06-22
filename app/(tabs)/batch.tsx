@@ -312,7 +312,7 @@ export default function BatchScreen() {
                             value={new Date(fromDate + "T12:00:00Z")}
                             mode="date"
                             display="default"
-                            onValueChange={(date) => {
+                            onChange={(event: any, date?: Date) => {
                                 setShowFromPicker(false);
                                 if (date) setFromDate(date.toISOString().split("T")[0]);
                             }}
@@ -341,7 +341,7 @@ export default function BatchScreen() {
                             value={new Date(toDate + "T12:00:00Z")}
                             mode="date"
                             display="default"
-                            onValueChange={(date) => {
+                            onChange={(event: any, date?: Date) => {
                                 setShowToPicker(false);
                                 if (date) setToDate(date.toISOString().split("T")[0]);
                             }}

@@ -15,7 +15,7 @@ class RateLimiter {
 
   subscribe(fn: RateLimitListener) {
     this.listeners.add(fn);
-    return () => this.listeners.delete(fn);
+    return () => { this.listeners.delete(fn); };
   }
 
   private notify() {
@@ -111,7 +111,7 @@ export const api = {
   getUpcomingFixtures: async (
     league: LeagueKey,
   ): Promise<Fixture[]> => {
-    const UPCOMING_STATUSES = ["NS", "TBD", "SCHED", "SCHEDULED", "NOT_STARTED"];
+    const UPCOMING_STATUSES = ["NS", "TBD", "SCHED", "SCHEDULED", "NOT_STARTED", "TIMED"];
     const base = new Date();
 
     // Generar las fechas de los próximos 7 días (hoy incluido)
@@ -127,10 +127,7 @@ export const api = {
     for (const dateStr of dates) {
       try {
         const fixtures = await fetchAPI<Fixture[]>(`/fixtures?league=${league}&date=${dateStr}`);
-        const valid = fixtures.filter((f) =>
-          UPCOMING_STATUSES.includes((f.status ?? "").toUpperCase())
-        );
-        upcoming.push(...valid);
+        upcoming.push(...fixtures);
       } catch (e) {
         console.warn(`Error fetching ${league} on ${dateStr}:`, e);
       }

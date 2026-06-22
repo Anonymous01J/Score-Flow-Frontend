@@ -9,7 +9,10 @@ import { router } from "expo-router";
 import { ChevronRight, Calendar, Clock, ArrowLeft } from "lucide-react-native";
 import { LEAGUES } from "../../src/utils/constants";
 import { api } from "../../src/utils/api";
-import type { LeagueKey, Fixture } from "../../src/types";
+import type { LeagueKey, Fixture, Prediction } from "../../src/types";
+import { ValueBetCard } from "../../src/components/ui/ValueBetCard";
+import ValueBetsCalculator from "../../src/components/ValueBetsCalculator";
+import { Zap } from "lucide-react-native";
 
 const isWeb = Platform.OS === "web";
 
@@ -31,16 +34,17 @@ const INITIAL_STATE: LeagueState = {
 
 // ─── Tarjeta de partido próximo ───────────────────────────────────────────────
 
-function UpcomingFixtureRow({
+function InlineFixtureCard({
   fixture,
   index,
-  onPress,
 }: {
   fixture: Fixture;
   index: number;
-  onPress: () => void;
 }) {
   const theme = useTheme();
+  const [expanded, setExpanded] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [pred, setPred] = useState<Prediction | null>(null);
 
   // Formato legible de fecha: "Mié 2 Abr"
   const [year, month, day] = fixture.match_date.split("-").map(Number);
@@ -49,13 +53,32 @@ function UpcomingFixtureRow({
   const monthNames = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
   const dateLabel = `${dayNames[dateObj.getDay()]} ${day} ${monthNames[month - 1]}`;
 
+  const handlePress = async () => {
+    if (expanded) {
+      setExpanded(false);
+      return;
+    }
+    if (pred) {
+      setExpanded(true);
+      return;
+    }
+    try {
+      setLoading(true);
+      const res = await api.getPrediction(fixture.fixture_id, fixture.league as LeagueKey);
+      setPred(res);
+      setExpanded(true);
+    } catch (e) {
+      alert("Error al cargar la predicción. Revisa tu conexión o el rate limit.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const hasValue = pred?.value_bets && pred.value_bets.length > 0;
+
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.82}>
-      <View style={[
-        rowStyles.container,
-        { borderBottomColor: theme.colors.outline + "60" },
-        index === 0 && rowStyles.firstRow,
-      ]}>
+    <View style={[{ borderBottomWidth: 1, borderBottomColor: theme.colors.outline + "60" }, index === 0 && rowStyles.firstRow]}>
+      <TouchableOpacity onPress={handlePress} activeOpacity={0.82} style={rowStyles.container}>
         {/* Número */}
         <View style={[rowStyles.indexBadge, { backgroundColor: theme.colors.surfaceVariant }]}>
           <Text style={[rowStyles.indexText, { color: theme.colors.onSurfaceVariant }]}>
@@ -66,19 +89,13 @@ function UpcomingFixtureRow({
         {/* Equipos + fecha */}
         <View style={rowStyles.middle}>
           <View style={rowStyles.teamsRow}>
-            <Text
-              style={[rowStyles.teamName, { color: theme.colors.onSurface }]}
-              numberOfLines={1}
-            >
+            <Text style={[rowStyles.teamName, { color: theme.colors.onSurface }]} numberOfLines={1}>
               {fixture.home_team}
             </Text>
             <View style={[rowStyles.vsChip, { backgroundColor: theme.colors.surfaceVariant }]}>
               <Text style={[rowStyles.vs, { color: theme.colors.onSurfaceVariant }]}>vs</Text>
             </View>
-            <Text
-              style={[rowStyles.teamName, rowStyles.teamRight, { color: theme.colors.onSurface }]}
-              numberOfLines={1}
-            >
+            <Text style={[rowStyles.teamName, rowStyles.teamRight, { color: theme.colors.onSurface }]} numberOfLines={1}>
               {fixture.away_team}
             </Text>
           </View>
@@ -92,16 +109,68 @@ function UpcomingFixtureRow({
 
         {/* CTA */}
         <View style={rowStyles.cta}>
-          <Text style={[rowStyles.ctaText, { color: theme.colors.primary }]}>Predecir</Text>
-          <ChevronRight size={14} color={theme.colors.primary} strokeWidth={2} />
+          {loading ? (
+             <ActivityIndicator size={14} color={theme.colors.primary} />
+          ) : (
+             <>
+               <Text style={[rowStyles.ctaText, { color: theme.colors.primary }]}>{expanded ? "Ocultar" : "Predecir"}</Text>
+               <ChevronRight size={14} color={theme.colors.primary} strokeWidth={2} style={{ transform: [{ rotate: expanded ? "90deg" : "0deg" }] }} />
+             </>
+          )}
         </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+
+      {/* Contenido Expandido */}
+      {expanded && pred && (
+        <View style={{ padding: 16, backgroundColor: hasValue ? theme.colors.primary + "08" : theme.colors.surface }}>
+           <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 12 }}>
+              <View style={{ flex: 1 }}>
+                 <Text style={{ fontSize: 10, color: theme.colors.onSurfaceVariant, textTransform: "uppercase", fontWeight: "700" }}>Local</Text>
+                 <Text style={{ fontSize: 14, fontWeight: "800", color: theme.colors.primary }}>{(pred.prob_home_win * 100).toFixed(1)}%</Text>
+              </View>
+              <View style={{ flex: 1, alignItems: "center" }}>
+                 <Text style={{ fontSize: 10, color: theme.colors.onSurfaceVariant, textTransform: "uppercase", fontWeight: "700" }}>Empate</Text>
+                 <Text style={{ fontSize: 14, fontWeight: "800", color: theme.colors.onSurface }}>{(pred.prob_draw * 100).toFixed(1)}%</Text>
+              </View>
+              <View style={{ flex: 1, alignItems: "flex-end" }}>
+                 <Text style={{ fontSize: 10, color: theme.colors.onSurfaceVariant, textTransform: "uppercase", fontWeight: "700" }}>Visitante</Text>
+                 <Text style={{ fontSize: 14, fontWeight: "800", color: "#3b82f6" }}>{(pred.prob_away_win * 100).toFixed(1)}%</Text>
+              </View>
+           </View>
+           <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+              <View>
+                 <Text style={{ fontSize: 10, color: theme.colors.onSurfaceVariant, textTransform: "uppercase", fontWeight: "700" }}>BTTS (Ambos Marcan)</Text>
+                 <Text style={{ fontSize: 13, fontWeight: "700", color: theme.colors.onSurface }}>{(pred.prob_btts * 100).toFixed(1)}%</Text>
+              </View>
+              <View style={{ alignItems: "flex-end" }}>
+                 <Text style={{ fontSize: 10, color: theme.colors.onSurfaceVariant, textTransform: "uppercase", fontWeight: "700" }}>Más de 2.5 Goles</Text>
+                 <Text style={{ fontSize: 13, fontWeight: "700", color: theme.colors.onSurface }}>{(pred.prob_over_25 * 100).toFixed(1)}%</Text>
+              </View>
+           </View>
+           
+
+
+           {hasValue ? (
+              <View style={{ marginTop: 16 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                     <Zap size={14} color={theme.colors.primary} fill={theme.colors.primary} />
+                     <Text style={{ fontSize: 12, fontWeight: "800", color: theme.colors.primary, textTransform: "uppercase" }}>Value Bets Sugeridas</Text>
+                  </View>
+                  {pred.value_bets.map((vb, idx) => <ValueBetCard key={idx} vb={vb} />)}
+              </View>
+           ) : (
+              <View style={{ marginTop: 16, alignItems: "center", paddingVertical: 12, backgroundColor: theme.colors.surfaceVariant, borderRadius: 8 }}>
+                  <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12, fontWeight: "600" }}>Sin valor detectado por el modelo</Text>
+              </View>
+           )}
+        </View>
+      )}
+    </View>
   );
 }
 
 const rowStyles = StyleSheet.create({
-  container:  { flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1, gap: 12 },
+  container:  { flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16, gap: 12 },
   firstRow:   { paddingTop: 16 },
   indexBadge: { width: 26, height: 26, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   indexText:  { fontSize: 11, fontWeight: "700" },
@@ -123,12 +192,10 @@ function LeagueCard({
   leagueKey,
   state,
   onExpand,
-  onFixturePress,
 }: {
   leagueKey: LeagueKey;
   state: LeagueState;
   onExpand: (key: LeagueKey) => void;
-  onFixturePress: (fixture: Fixture) => void;
 }) {
   const theme  = useTheme();
   const league = LEAGUES[leagueKey];
@@ -210,11 +277,10 @@ function LeagueCard({
                 </Text>
               </View>
               {state.fixtures.map((fixture, i) => (
-                <UpcomingFixtureRow
+                <InlineFixtureCard
                   key={fixture.fixture_id}
                   fixture={fixture}
                   index={i}
-                  onPress={() => onFixturePress(fixture)}
                 />
               ))}
             </>
@@ -279,21 +345,15 @@ export default function LeaguesScreen() {
       const fixtures = await api.getUpcomingFixtures(key);
       setLeagueStates((prev) => ({
         ...prev,
-        [key]: { fixtures, loading: false, loaded: true, error: null },
+        [key]: { ...prev[key], fixtures, loading: false, loaded: true, error: null },
       }));
     } catch {
       setLeagueStates((prev) => ({
         ...prev,
-        [key]: { fixtures: [], loading: false, loaded: true, error: "No se pudieron cargar los partidos." },
+        [key]: { ...prev[key], fixtures: [], loading: false, loaded: true, error: "No se pudieron cargar los partidos." },
       }));
     }
   }, [leagueStates]);
-
-  const handleFixturePress = (fixture: Fixture) => {
-    router.push(
-      `/(screens)/prediction?fixture_id=${fixture.fixture_id}&league=${fixture.league}&home_team=${encodeURIComponent(fixture.home_team)}&away_team=${encodeURIComponent(fixture.away_team)}`
-    );
-  };
 
   const content = (
     <ScrollView
@@ -313,13 +373,12 @@ export default function LeaguesScreen() {
       </Surface>
       */}
 
-      {LEAGUE_KEYS.map((key) => (
+      {Object.values(LEAGUES).map((l) => (
         <LeagueCard
-          key={key}
-          leagueKey={key}
-          state={leagueStates[key]}
+          key={l.key}
+          leagueKey={l.key}
+          state={leagueStates[l.key] || INITIAL_STATE}
           onExpand={handleExpand}
-          onFixturePress={handleFixturePress}
         />
       ))}
 
