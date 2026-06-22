@@ -15,15 +15,8 @@ import { api, today } from "../../src/utils/api";
 import { LEAGUES } from "../../src/utils/constants";
 import type { Fixture, LeagueKey } from "../../src/types";
 
-// Todas las ligas disponibles en orden
-const LEAGUE_KEYS: LeagueKey[] = [
-  "premier_league",
-  "la_liga",
-  "bundesliga",
-  "serie_a",
-  "ligue_1",
-  "champions_league",
-];
+// Todas las ligas disponibles (el orden respeta constants.ts)
+const LEAGUE_KEYS = Object.keys(LEAGUES) as LeagueKey[];
 
 // Ligas que se muestran en las tabs nativas (máximo 4 caben bien)
 const NATIVE_TAB_KEYS: LeagueKey[] = [

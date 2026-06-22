@@ -1,7 +1,56 @@
 import { API_BASE_URL } from "./constants";
 import type { Fixture, League, Prediction, LeagueKey } from "../types";
 
+// ─── Limitador de peticiones (Rate Limiter) ───────────────────────────────────
+
+type RateLimitListener = (state: { isPaused: boolean; secondsLeft: number }) => void;
+
+class RateLimiter {
+  private count = 0;
+  private limit = 10;
+  private isPaused = false;
+  private secondsLeft = 0;
+  private listeners: Set<RateLimitListener> = new Set();
+
+  subscribe(fn: RateLimitListener) {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
+  }
+
+  private notify() {
+    for (const fn of this.listeners) {
+      fn({ isPaused: this.isPaused, secondsLeft: this.secondsLeft });
+    }
+  }
+
+  async hit() {
+    // Si ya estamos en pausa, esperamos a que termine
+    while (this.isPaused) {
+      await new Promise((r) => setTimeout(r, 500));
+    }
+
+    this.count++;
+    if (this.count > 0 && this.count % this.limit === 0) {
+      this.isPaused = true;
+      this.secondsLeft = 66; // 1.1 min
+      this.notify();
+
+      while (this.secondsLeft > 0) {
+        await new Promise((r) => setTimeout(r, 1000));
+        this.secondsLeft--;
+        this.notify();
+      }
+
+      this.isPaused = false;
+      this.notify();
+    }
+  }
+}
+
+export const rateLimiter = new RateLimiter();
+
 async function fetchAPI<T>(endpoint: string): Promise<T> {
+  await rateLimiter.hit();
   const res = await fetch(`${API_BASE_URL}${endpoint}`);
   if (!res.ok) throw new Error(`API error ${res.status}: ${endpoint}`);
   return res.json();
@@ -45,12 +94,11 @@ export const api = {
 
   /**
    * Busca partidos programados de la semana actual (7 días desde hoy).
-   * Lanza todas las peticiones en paralelo y agrupa los resultados por fecha.
-   * Retorna máximo `count` partidos ordenados por fecha ascendente.
+   * Lanza las peticiones secuencialmente para respetar los límites de la API.
+   * Retorna todos los partidos de la semana ordenados por fecha ascendente.
    */
   getUpcomingFixtures: async (
     league: LeagueKey,
-    count: number = 5,
   ): Promise<Fixture[]> => {
     const UPCOMING_STATUSES = ["NS", "TBD", "SCHED", "SCHEDULED", "NOT_STARTED"];
     const base = new Date();
@@ -62,27 +110,22 @@ export const api = {
       return formatDate(d);
     });
 
-    // Lanzar todas las peticiones en paralelo
-    const results = await Promise.allSettled(
-      dates.map((dateStr) =>
-        fetchAPI<Fixture[]>(`/fixtures?league=${league}&date=${dateStr}`)
-          .then((fixtures) =>
-            fixtures.filter((f) =>
-              UPCOMING_STATUSES.includes((f.status ?? "").toUpperCase())
-            )
-          )
-      )
-    );
-
-    // Combinar resultados exitosos manteniendo orden por fecha
     const upcoming: Fixture[] = [];
-    for (const result of results) {
-      if (result.status === "fulfilled") {
-        upcoming.push(...result.value);
+
+    // Peticiones secuenciales para no quemar el límite
+    for (const dateStr of dates) {
+      try {
+        const fixtures = await fetchAPI<Fixture[]>(`/fixtures?league=${league}&date=${dateStr}`);
+        const valid = fixtures.filter((f) =>
+          UPCOMING_STATUSES.includes((f.status ?? "").toUpperCase())
+        );
+        upcoming.push(...valid);
+      } catch (e) {
+        console.warn(`Error fetching ${league} on ${dateStr}:`, e);
       }
     }
 
-    return upcoming.slice(0, count);
+    return upcoming;
   },
 };
 

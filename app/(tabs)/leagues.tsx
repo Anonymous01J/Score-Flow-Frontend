@@ -276,7 +276,7 @@ export default function LeaguesScreen() {
     }));
 
     try {
-      const fixtures = await api.getUpcomingFixtures(key, 5, 30);
+      const fixtures = await api.getUpcomingFixtures(key);
       setLeagueStates((prev) => ({
         ...prev,
         [key]: { fixtures, loading: false, loaded: true, error: null },
