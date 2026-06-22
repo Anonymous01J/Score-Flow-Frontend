@@ -10,8 +10,11 @@ import {
   Info, Swords, BarChart2,
 } from "lucide-react-native";
 import { api } from "../../src/utils/api";
+import { formatTelegramMessage } from "../../src/utils/telegramFormat";
+import * as Clipboard from "expo-clipboard";
 import { LEAGUES, QUALITY_LABELS, MARKET_LABELS } from "../../src/utils/constants";
 import type { Prediction, LeagueKey, H2HSummary } from "../../src/types";
+import ValueBetsCalculator from "../../src/components/ValueBetsCalculator";
 
 const isWeb = Platform.OS === "web";
 
@@ -454,6 +457,14 @@ export default function PredictionScreen() {
       .finally(() => setLoading(false));
   }, [params.fixture_id]);
 
+  const copyToTelegram = async () => {
+    if (prediction) {
+      const msg = formatTelegramMessage(prediction);
+      await Clipboard.setStringAsync(msg);
+      alert("¡Mensaje copiado al portapapeles!");
+    }
+  };
+
   const quality   = prediction ? QUALITY_LABELS[prediction.sample_quality] : null;
   const hasNoData = prediction &&
     prediction.home_form_weight === 0 &&
@@ -699,6 +710,10 @@ export default function PredictionScreen() {
         </Text>
       </Surface>
 
+      <ValueBetsCalculator prediction={prediction} />
+
+      <View style={{ height: 100 }} />
+
       <View style={{ height: 32 }} />
     </>
   );
@@ -715,7 +730,9 @@ export default function PredictionScreen() {
             {leagueInfo.flag} {leagueInfo.name}
           </Text>
         </View>
-        <View style={{ width: 38 }} />
+        <TouchableOpacity onPress={copyToTelegram} style={styles.copyBtn} disabled={!prediction}>
+          <Text style={{ fontSize: 18 }}>📋</Text>
+        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -764,6 +781,7 @@ const styles = StyleSheet.create({
   header:           { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12 },
   headerWeb:        { maxWidth: 860, width: "100%" as any, alignSelf: "center" as any },
   backBtn:          { padding: 8, borderRadius: 10 },
+  copyBtn:          { padding: 8, borderRadius: 10 },
   leaguePill:       { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 },
   leaguePillText:   { fontSize: 12, fontWeight: "700" },
   centered:         { flex: 1, justifyContent: "center", alignItems: "center", gap: 8, paddingHorizontal: 32 },

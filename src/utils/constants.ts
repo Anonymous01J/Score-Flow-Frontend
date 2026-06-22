@@ -50,6 +50,14 @@ export const LEAGUES = {
     color: "#001489",
     accentColor: "#ffffff",
   },
+  world_cup: {
+    key: "world_cup",
+    name: "World Cup",
+    country: "World",
+    flag: "🌍",
+    color: "#8a1538",
+    accentColor: "#eab308",
+  },
 } as const;
 
 export const QUALITY_LABELS = {

@@ -30,7 +30,8 @@ export type LeagueKey =
   | "bundesliga"
   | "serie_a"
   | "ligue_1"
-  | "champions_league";
+  | "champions_league"
+  | "world_cup";
 
 export interface League {
   key: LeagueKey;
