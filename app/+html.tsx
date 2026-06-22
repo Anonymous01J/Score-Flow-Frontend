@@ -23,7 +23,12 @@ export default function Root({ children }: PropsWithChildren) {
         {/* Cambia esto por la URL final donde hospedes tu app web */}
         <meta property="og:url" content="https://score-flow.vercel.app/" /> 
         <meta property="og:title" content="ScoreFlow | Predicciones Matemáticas de Fútbol" />
-        <meta property="og:description" content="Derrota a las casas de apuestas. Análisis matemático de cuotas y Criterio Kelly." />
+        <meta property="og:description" content="⚽ Predicciones diarias de partidos con modelo estadístico. Analizamos las mejores ligas del mundo para darte las predicciones más precisas.
+          🏆 Ligas cubiertas:
+          🌍 Mundial 2026
+          🏴 Premier League 🇪🇸 La Liga
+          🇩🇪 Bundesliga 🇮🇹 Serie A
+          🇫🇷 Ligue 1 🏆 Champions" />
         
         {/* IMPORTANTE: La imagen debe ser una URL absoluta y preferiblemente de 1200x630 píxeles */}
         <meta property="og:image" content="https://raw.githubusercontent.com/Anonymous01J/ScoreFlow-Batch/refs/heads/main/logo.jpg" />
