@@ -15,14 +15,14 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
 
         {/* Configuración SEO Básica */}
-        <title>ScoreFlow | Predicciones Matemáticas de Fútbol</title>
+        <title>ScoreFlow | Predicciones Estadísticas de Fútbol</title>
         <meta name="description" content="Motor predictivo de Value Bets usando modelo de Poisson, Dixon-Coles y Rating Elo para fútbol." />
 
         {/* Open Graph / Facebook / WhatsApp */}
         <meta property="og:type" content="website" />
         {/* Cambia esto por la URL final donde hospedes tu app web */}
         <meta property="og:url" content="https://score-flow.vercel.app/" /> 
-        <meta property="og:title" content="ScoreFlow | Predicciones Matemáticas de Fútbol" />
+        <meta property="og:title" content="ScoreFlow | Predicciones Estadísticas de Fútbol" />
         <meta property="og:description" content="⚽ Predicciones diarias de partidos con modelo estadístico. Analizamos las mejores ligas del mundo para darte las predicciones más precisas.
           🏆 Ligas cubiertas:
           🌍 Mundial 2026
@@ -36,7 +36,7 @@ export default function Root({ children }: PropsWithChildren) {
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:url" content="https://score-flow.vercel.app/" />
-        <meta name="twitter:title" content="ScoreFlow | Predicciones Matemáticas de Fútbol" />
+        <meta name="twitter:title" content="ScoreFlow | Predicciones Estadísticas de Fútbol" />
         <meta name="twitter:description" content="⚽ Predicciones diarias de partidos con modelo estadístico. Analizamos las mejores ligas del mundo para darte las predicciones más precisas.
           🏆 Ligas cubiertas:
           🌍 Mundial 2026
