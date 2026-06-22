@@ -22,6 +22,11 @@ export function formatTelegramMessage(pred: Prediction): string {
   const topEmoji = topOutcome.k === "1" ? "🏠" : topOutcome.k === "X" ? "🤝" : "✈️";
   const topLabel = topOutcome.k === "1" ? "Local" : topOutcome.k === "X" ? "Empate" : "Visitante";
 
+  // Double Chance
+  const p1X = pred.prob_home_win + pred.prob_draw;
+  const p12 = pred.prob_home_win + pred.prob_away_win;
+  const pX2 = pred.prob_draw + pred.prob_away_win;
+
   let valueBetsBlock = "";
   if (pred.value_bets && pred.value_bets.length > 0) {
     const bets = pred.value_bets.map(vb => {
@@ -44,6 +49,7 @@ export function formatTelegramMessage(pred: Prediction): string {
 ✈️ Visit.: ${(pred.prob_away_win * 100).toFixed(1)}%
 
 ⚽ BTTS: ${(pred.prob_btts * 100).toFixed(1)}%  |  O2.5: ${(pred.prob_over_25 * 100).toFixed(1)}%
+🛡️ Doble Op.: 1X ${(p1X * 100).toFixed(0)}% | 12 ${(p12 * 100).toFixed(0)}% | X2 ${(pX2 * 100).toFixed(0)}%
 
 🔮 Favorito: ${topEmoji} ${topLabel} (${(topOutcome.v * 100).toFixed(1)}%)
 📐 Exp. Goals: ${pred.lambda_home.toFixed(2)} – ${pred.lambda_away.toFixed(2)}
